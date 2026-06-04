@@ -1,13 +1,6 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/vinay-vk-kumar/sms-gateway/main/frontend/public/vite.svg" width="120" alt="Logo" />
   <h1>🚀 Next-Gen SMS Gateway</h1>
   <p><strong>Turn any Android phone into a powerful, self-hosted Twilio alternative.</strong></p>
-  
-  <p>
-    <a href="https://github.com/vinay-vk-kumar/sms-gateway/releases"><img src="https://img.shields.io/github/v/release/vinay-vk-kumar/sms-gateway?color=6366f1&label=Latest%20Release&style=for-the-badge" alt="Release" /></a>
-    <a href="https://github.com/vinay-vk-kumar/sms-gateway/stargazers"><img src="https://img.shields.io/github/stars/vinay-vk-kumar/sms-gateway?color=f59e0b&style=for-the-badge" alt="Stars" /></a>
-    <a href="https://github.com/vinay-vk-kumar/sms-gateway/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-4ade80?style=for-the-badge" alt="License" /></a>
-  </p>
 </div>
 
 <hr/>
