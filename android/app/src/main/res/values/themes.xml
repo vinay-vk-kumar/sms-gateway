@@ -1,0 +1,66 @@
+<resources>
+    <!-- Base application theme — Vercel-inspired dark, no action bar (we draw our own header) -->
+    <style name="Theme.SmsGateway" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand</item>
+        <item name="colorPrimaryVariant">@color/brand_dark</item>
+        <item name="colorOnPrimary">@color/text_primary</item>
+        <item name="colorSurface">@color/bg_surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:windowBackground">@color/bg_base</item>
+        <item name="android:statusBarColor">@color/bg_base</item>
+        <item name="android:navigationBarColor">@color/bg_base</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <!-- EditText cursor + underline color -->
+        <item name="colorAccent">@color/brand</item>
+        <!-- Snackbar styling -->
+        <item name="snackbarStyle">@style/Widget.SmsGateway.Snackbar</item>
+    </style>
+
+    <!-- Settings activity theme — same dark look, with custom toolbar -->
+    <style name="Theme.SmsGateway.Settings" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand</item>
+        <item name="colorPrimaryVariant">@color/brand_dark</item>
+        <item name="colorOnPrimary">@color/text_primary</item>
+        <item name="colorSurface">@color/bg_surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:windowBackground">@color/bg_base</item>
+        <item name="android:statusBarColor">@color/bg_base</item>
+        <item name="android:navigationBarColor">@color/bg_base</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorAccent">@color/brand</item>
+        <item name="snackbarStyle">@style/Widget.SmsGateway.Snackbar</item>
+    </style>
+
+    <!-- Styled Snackbar -->
+    <style name="Widget.SmsGateway.Snackbar" parent="Widget.MaterialComponents.Snackbar">
+        <item name="android:layout_margin">16dp</item>
+        <item name="animationMode">slide</item>
+    </style>
+
+    <!-- Button: Primary (indigo) -->
+    <style name="Widget.SmsGateway.Button.Primary" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/brand</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- Button: Secondary (surface) -->
+    <style name="Widget.SmsGateway.Button.Secondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="strokeColor">@color/border</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="rippleColor">#1affffff</item>
+    </style>
+
+    <!-- Button: Danger (red tint) -->
+    <style name="Widget.SmsGateway.Button.Danger" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="strokeColor">#2af87171</item>
+        <item name="android:textColor">@color/red</item>
+        <item name="android:textSize">14sp</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="rippleColor">#1af87171</item>
+    </style>
+</resources>

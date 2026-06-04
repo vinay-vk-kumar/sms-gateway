@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App icon -->
+    <color name="ic_launcher_background">#6366f1</color>
+
+    <!-- Background -->
+    <color name="bg_base">#07070F</color>
+    <color name="bg_surface">#0A0A14</color>
+    <color name="bg_elevated">#11111C</color>
+
+    <!-- Border -->
+    <color name="border">#1AFFFFFF</color>
+    <color name="border_focus">#6366f1</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
+
+    <!-- Brand / Accent -->
+    <color name="brand">#6366f1</color>
+    <color name="brand_dark">#4f46e5</color>
+
+    <!-- Semantic -->
+    <color name="green">#4ade80</color>
+    <color name="green_bg">#0d1f12</color>
+    <color name="amber">#fbbf24</color>
+    <color name="amber_bg">#1f1a0a</color>
+    <color name="red">#f87171</color>
+    <color name="red_bg">#1f0d0d</color>
+    <color name="indigo_soft">#818cf8</color>
+
+    <!-- Snackbar backgrounds -->
+    <color name="snackbar_success_bg">#0d2218</color>
+    <color name="snackbar_error_bg">#2a0f0f</color>
+    <color name="snackbar_info_bg">#111827</color>
+</resources>

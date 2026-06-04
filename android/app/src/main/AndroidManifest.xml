@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AndroidManifest.xml
+    ====================
+    Declares:
+      - SEND_SMS permission (DANGEROUS — user must grant at runtime)
+      - RECEIVE_BOOT_COMPLETED — restart WorkManager after device reboot
+      - INTERNET + WAKE_LOCK — for HTTP and keeping CPU alive during SMS send
+      - SmsFirebaseService — receives FCM messages in background
+      - WorkManager — handles periodic polling and immediate send
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- SMS permissions -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <!-- Background & network -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".SmsGatewayApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.SmsGateway">
+
+        <!-- Main screen -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Settings screen — NoActionBar: back arrow is drawn in layout -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmsGateway"
+            android:label="Settings" />
+
+        <!--
+            FCM Service
+            ===========
+            Receives FCM data-only messages when the app is in background/killed.
+            This is the PRIMARY trigger for SMS delivery.
+            Priority: HIGH — wakes the device immediately.
+        -->
+        <service
+            android:name=".fcm.SmsFirebaseService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!--
+            Continuous Polling Service (Zero-Delay)
+            ==========================
+            Keeps the app alive for guaranteed instant delivery if FCM fails.
+        -->
+        <service
+            android:name=".worker.SmsForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <!--
+            NOTE: WorkManager's BroadcastReceiver (for boot + force-stop recovery)
+            is automatically declared by WorkManager 2.9.0's own manifest.
+            Do NOT declare it manually — it causes a manifest merger conflict.
+            WorkManager handles boot recovery automatically.
+        -->
+
+    </application>
+</manifest>

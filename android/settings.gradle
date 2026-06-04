@@ -1,0 +1,29 @@
+// settings.gradle — tells Gradle WHERE to find plugins and dependencies
+// This file is REQUIRED for modern Gradle projects (7.0+)
+// Without it, Gradle searches only the Gradle Plugin Portal and misses Google's Maven repo
+
+pluginManagement {
+    repositories {
+        // Google's Maven repo — HOME of all Android plugins (com.android.application, etc.)
+        google()
+        // Standard central repositories
+        mavenCentral()
+        // Gradle's own plugin portal (kotlin plugins live here)
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        // All Android libraries (AndroidX, Firebase, etc.) come from here
+        google()
+        mavenCentral()
+    }
+}
+
+// The name shown in Android Studio's project panel
+rootProject.name = "SmsGateway"
+
+// Register the app module (the android/app/ folder)
+include ':app'
