@@ -37,17 +37,29 @@ The core of this system is the Android worker app. It securely connects to your 
 
 ---
 
-## 💻 Programmatic API Usage
+### 📨 Sending a Message (Step-by-Step)
 
-Once your device is connected, sending an SMS is as simple as a single `curl` command:
+Once your device is connected, sending an SMS is done by making a simple HTTP POST request to your backend API.
 
+**Step 1:** Get your **API Key** and **Device ID** from the Dashboard.
+**Step 2:** Open a terminal (Command Prompt, PowerShell, or bash).
+**Step 3:** Run the following `curl` command to queue a message:
+
+#### Windows Terminal (CMD / PowerShell)
+```cmd
+curl.exe -X POST https://api.smsgateway.codewithvin.app/api/sms/queue -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d "{\"to\": \"+91XXXXXXXXXX\", \"message\": \"Hello from my self-hosted SMS Gateway!\", \"deviceId\": \"YOUR_DEVICE_ID\", \"type\": \"otp\"}"
+```
+
+#### Mac / Linux Terminal
 ```bash
-curl -X POST https://your-backend-api.com/api/sms/queue \
+curl -X POST https://api.smsgateway.codewithvin.app/api/sms/queue \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "to": "+91XXXXXXXXXX",
-    "message": "Hello from my self-hosted SMS Gateway! 🚀"
+    "message": "Hello from my self-hosted SMS Gateway! 🚀",
+    "deviceId": "YOUR_DEVICE_ID",
+    "type": "otp"
   }'
 ```
 

@@ -303,7 +303,7 @@ function CodeSnippet() {
         <div className="mt-2">
           <span style={{ color: '#818cf8' }}>curl</span>
           <span style={{ color: '#e2e8f0' }}> -X POST </span>
-          <span style={{ color: '#4ade80' }}>https://api.yourdomain.com/api/sms/queue</span> <span style={{ color: '#e2e8f0' }}>\</span>
+          <span style={{ color: '#4ade80' }}>https://api.smsgateway.codewithvib.com/api/sms/queue</span> <span style={{ color: '#e2e8f0' }}>\</span>
         </div>
         <div className="pl-4 mt-1">
           <span style={{ color: '#818cf8' }}>-H </span>

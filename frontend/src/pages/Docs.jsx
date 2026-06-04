@@ -219,15 +219,21 @@ export default function Docs() {
 
             <div className="space-y-8">
               <CodeBlock
-                language="cURL"
+                language="cURL (Mac/Linux)"
                 code={`curl -X POST ${baseUrl}/api/sms/queue \\
   -H "x-api-key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "+919876543210",
     "message": "Your verification code is 492019",
-    "deviceId": "YOUR_DEVICE_ID"
+    "deviceId": "YOUR_DEVICE_ID",
+    "type": "otp"
   }'`}
+              />
+
+              <CodeBlock
+                language="cURL (Windows CMD)"
+                code={`curl.exe -X POST ${baseUrl}/api/sms/queue -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d "{\\"to\\": \\"+919876543210\\", \\"message\\": \\"Your verification code is 492019\\", \\"deviceId\\": \\"YOUR_DEVICE_ID\\", \\"type\\": \\"otp\\"}"`}
               />
 
               <CodeBlock

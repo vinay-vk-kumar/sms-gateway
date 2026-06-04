@@ -83,11 +83,8 @@ Invoke-RestMethod -Method POST \`
   -Headers @{ "x-api-key" = "YOUR_API_KEY"; "Content-Type" = "application/json" } \`
   -Body '{"to":"+91XXXXXXXXXX","message":"Your OTP is 123456","deviceId":"YOUR_DEVICE_ID","type":"otp"}'
 
-# Windows — curl.exe
-curl.exe -X POST ${baseUrl}/api/sms/queue \`
-  -H "x-api-key: YOUR_API_KEY" \`
-  -H "Content-Type: application/json" \`
-  -d "{\\"to\\": \\"+91XXXXXXXXXX\\", \\"message\\": \\"Your OTP is 123456\\", \\"deviceId\\": \\"YOUR_DEVICE_ID\\", \\"type\\": \\"otp\\"}"`,
+# Windows — Command Prompt (CMD) / PowerShell
+curl.exe -X POST ${baseUrl}/api/sms/queue -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d "{\\"to\\": \\"+91XXXXXXXXXX\\", \\"message\\": \\"Your OTP is 123456\\", \\"deviceId\\": \\"YOUR_DEVICE_ID\\", \\"type\\": \\"otp\\"}"`,
 
   node: `import axios from 'axios';
 
