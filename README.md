@@ -1,6 +1,6 @@
 <div align="center">
   <h1>🚀 Next-Gen SMS Gateway</h1>
-  <p><strong>Turn any Android phone into a powerful, self-hosted Twilio alternative.</strong></p>
+  <p><strong>Turn any Android phone into a powerful, Twilio alternative.</strong></p>
 </div>
 
 <hr/>
@@ -47,7 +47,7 @@ Once your device is connected, sending an SMS is done by making a simple HTTP PO
 
 #### Windows Terminal (CMD / PowerShell)
 ```cmd
-curl.exe -X POST https://api.smsgateway.codewithvin.app/api/sms/queue -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d "{\"to\": \"+91XXXXXXXXXX\", \"message\": \"Hello from my self-hosted SMS Gateway!\", \"deviceId\": \"YOUR_DEVICE_ID\", \"type\": \"otp\"}"
+curl.exe -X POST https://api.smsgateway.codewithvin.app/api/sms/queue -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d "{\"to\": \"+91XXXXXXXXXX\", \"message\": \"Hello from SMS Gateway!\", \"deviceId\": \"YOUR_DEVICE_ID\", \"type\": \"otp\"}"
 ```
 
 #### Mac / Linux Terminal
@@ -57,7 +57,7 @@ curl -X POST https://api.smsgateway.codewithvin.app/api/sms/queue \
   -H "Content-Type: application/json" \
   -d '{
     "to": "+91XXXXXXXXXX",
-    "message": "Hello from my self-hosted SMS Gateway! 🚀",
+    "message": "Hello from SMS Gateway! 🚀",
     "deviceId": "YOUR_DEVICE_ID",
     "type": "otp"
   }'
@@ -88,7 +88,6 @@ PORT=3000
 MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.mongodb.net/sms_gateway
 REDIS_URL=redis://default:<password>@your-redis-url.upstash.io:6379
 JWT_SECRET=your_super_secret_jwt_key
-ADMIN_EMAIL=admin@example.com
 ```
 
 **Firebase Config:** Download your Firebase Admin private key JSON and save it as `serviceAccount.json` in the `backend` folder.
