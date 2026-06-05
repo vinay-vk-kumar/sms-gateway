@@ -499,7 +499,7 @@ export default function Landing() {
                   boxShadow: '0 10px 30px -10px rgba(99,102,241,0.8)',
                 }}
               >
-                Start Building Free
+                Create Account
               </Link>
               <button
                 onClick={handleDownload}
