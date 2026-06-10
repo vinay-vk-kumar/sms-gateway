@@ -503,7 +503,7 @@ export default function Landing() {
               </Link>
               <button
                 onClick={handleDownload}
-                className="px-8 py-4 rounded-xl text-base font-semibold transition-all hover:bg-white/5 inline-flex items-center justify-center gap-3"
+                className="px-8 py-4 rounded-xl text-base font-semibold transition-all hover:scale-105 inline-flex items-center justify-center gap-3"
                 style={{
                   background: 'rgba(255,255,255,0.02)',
                   border: '1px solid rgba(255,255,255,0.1)',
@@ -701,7 +701,7 @@ export default function Landing() {
                 </Link>
                 <button
                   onClick={handleDownload}
-                  className="px-8 py-4 rounded-xl text-base font-semibold transition-all hover:bg-white/5"
+                  className="px-8 py-4 rounded-xl text-base font-semibold transition-all hover:scale-105"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#f1f5f9' }}
                 >
                   Download APK
