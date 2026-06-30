@@ -10,7 +10,7 @@ const apiKeyMiddleware = async (req, res, next) => {
     if (!apiKey) {
       return error(res, 'API key required. Include x-api-key header.', 401);
     }
-
+    apikey = apiKey.replace("sms-gateway_", "");
     const user = await User.findOne({ apiKey }).select('-passwordHash');
 
     if (!user) {

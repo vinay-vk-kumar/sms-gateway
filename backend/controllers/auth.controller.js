@@ -52,7 +52,7 @@ const register = async (req, res) => {
   if (existing) return error(res, 'This email is already registered. Please log in.', 409);
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const apiKey = crypto.randomBytes(32).toString('hex');
+  const apiKey = "sms-gateway_" + crypto.randomBytes(32).toString('hex');
 
   const user = await User.create({ email: normalizedEmail, passwordHash, apiKey });
 
@@ -90,7 +90,7 @@ const me = async (req, res) => {
 };
 
 const regenerateApiKey = async (req, res) => {
-  const newApiKey = crypto.randomBytes(32).toString('hex');
+  const newApiKey = "sms-gateway_" + crypto.randomBytes(32).toString('hex');
   await User.findByIdAndUpdate(req.user._id, { apiKey: newApiKey });
   console.log(`[Auth] API key regenerated for: ${req.user.email}`);
   return success(res, { apiKey: newApiKey });
@@ -130,7 +130,7 @@ const googleAuth = async (req, res) => {
       await user.save();
     }
   } else {
-    const apiKey = crypto.randomBytes(32).toString('hex');
+    const apiKey = "sms-gateway_" + crypto.randomBytes(32).toString('hex');
     user = await User.create({ email: normalizedEmail, googleId, apiKey });
     console.log(`[Auth] Google sign-up: ${normalizedEmail}`);
   }
