@@ -478,7 +478,7 @@ export default function Landing() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-lg sm:text-xl mb-10 max-w-xl leading-relaxed" style={{ color: '#94a3b8' }}
             >
-              Self-hostable, RESTful SMS delivery engine.
+              RESTful SMS delivery engine.
               Queue OTPs and transactional messages directly through your own phone.
               No carrier locks, no monthly SaaS fees.
             </motion.p>

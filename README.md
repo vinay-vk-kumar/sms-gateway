@@ -130,5 +130,17 @@ This project is built using modern, highly-scalable technologies:
 ## 🤝 Contributing
 Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/vinay-vk-kumar/sms-gateway/issues).
 
-## 📝 License
-MIT License
+## 📝 License & Copyright
+
+**© 2026 Vinay Kumar. All Rights Reserved.**
+
+This is a proprietary, closed-source project. It is provided here for portfolio and demonstration purposes only. 
+
+You are **strictly prohibited** from:
+* Cloning, forking, downloading, or copying this repository.
+* Modifying, distributing, or creating derivative works from this code.
+* Deploying, hosting, or using this software for personal, commercial, or enterprise purposes.
+
+No license is granted to any person or entity to use this software. Any use of this code requires explicit, prior written permission from the author. 
+
+For permissions or inquiries, please contact: [omrajputkumar@gmail.com](mailto:omrajputkumar@gmail.com)
