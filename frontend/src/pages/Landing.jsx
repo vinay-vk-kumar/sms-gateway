@@ -449,7 +449,7 @@ export default function Landing() {
               style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#a5b4fc' }}
             >
               <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#4ade80', boxShadow: '0 0 8px #4ade80' }} />
-              Open Source API Infrastructure
+              Developer-First API Infrastructure
             </motion.div>
 
             {/* Title */}
@@ -478,9 +478,9 @@ export default function Landing() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-lg sm:text-xl mb-10 max-w-xl leading-relaxed" style={{ color: '#94a3b8' }}
             >
-              RESTful SMS delivery engine.
-              Queue OTPs and transactional messages directly through your own phone.
-              No carrier locks, no monthly SaaS fees.
+              The smart way to send SMS. 
+              Transform your Android device into a dedicated delivery engine for OTPs and transactional alerts. 
+              Zero carrier locks, infinite possibilities.
             </motion.p>
 
             {/* CTAs */}
@@ -527,7 +527,7 @@ export default function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
             <Stat value="RESTful" label="Clean JSON API" />
             <Stat value="< 2.5s" label="Avg. Delivery Speed" />
-            <Stat value="Free" label="Open Source & Self-hosted" />
+            <Stat value="Zero" label="Monthly SaaS Fees" />
             <Stat value="Secure" label="E2E encrypted payloads" />
           </div>
         </div>
@@ -560,7 +560,7 @@ export default function Landing() {
               className="flex items-center justify-center gap-4 mx-auto max-w-sm"
             >
               <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-indigo-500/50"></div>
-              <p className="text-indigo-400 font-mono text-xs tracking-[0.2em] uppercase shrink-0">Open Source Promise</p>
+              <p className="text-indigo-400 font-mono text-xs tracking-[0.2em] uppercase shrink-0">Performance First</p>
               <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-indigo-500/50"></div>
             </motion.div>
           </motion.div>
@@ -652,7 +652,7 @@ export default function Landing() {
               Everything you need.
             </h2>
             <p className="text-lg" style={{ color: '#94a3b8' }}>
-              Enterprise-grade features, open-source flexibility.
+              Enterprise-grade features, unparalleled flexibility.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -661,7 +661,7 @@ export default function Landing() {
             <FeatureCard icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>} title="Real-time Logs" desc="Track message states (queued, sent, failed) directly from your dashboard with detailed error reporting." delay={2} />
             <FeatureCard icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>} title="FCM Push Delivery" desc="Zero polling overhead. Messages are pushed to your device instantly via Firebase Cloud Messaging." delay={3} />
             <FeatureCard icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>} title="Dark Mode Default" desc="A beautiful, developer-centric interface crafted with attention to detail and typography." delay={4} />
-            <FeatureCard icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>} title="100% Self-Hostable" desc="Deploy the Node.js backend and MongoDB cluster anywhere. Keep your data entirely in your control." delay={5} />
+            <FeatureCard icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>} title="Zero-Delay Delivery" desc="Background foreground service ensures messages are dispatched instantly, without Android battery-saver throttling." delay={5} />
           </div>
         </div>
       </section>
@@ -724,8 +724,7 @@ export default function Landing() {
                 <span className="font-bold text-lg" style={{ color: '#ffffff' }}>SMS Gateway</span>
               </div>
               <p className="text-sm leading-relaxed max-w-sm" style={{ color: '#64748b' }}>
-                The open-source, developer-friendly infrastructure to turn any Android device into a powerful REST API for SMS delivery.
-              </p>
+                The powerful, developer-friendly infrastructure to turn any Android device into a robust REST API for SMS delivery.              </p>
             </div>
 
             <div>
@@ -742,7 +741,7 @@ export default function Landing() {
               <ul className="space-y-4">
                 <li><a href="#" className="text-sm text-slate-400 hover:text-indigo-400 transition-colors">Privacy Policy</a></li>
                 <li><a href="#" className="text-sm text-slate-400 hover:text-indigo-400 transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="text-sm text-slate-400 hover:text-indigo-400 transition-colors">Open Source License</a></li>
+                <li><a href="#" className="text-sm text-slate-400 hover:text-indigo-400 transition-colors">License Agreement</a></li>
               </ul>
             </div>
           </div>
