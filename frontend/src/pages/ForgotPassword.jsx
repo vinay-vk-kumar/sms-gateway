@@ -38,19 +38,23 @@ function Steps({ current }) {
           );
         })}
       </div>
-      {/* Row 2: labels — justify-between mirrors the circle positions */}
-      <div className="flex justify-between px-1 mt-2">
+      {/* Row 2: labels — mirrors the circle positions exactly */}
+      <div className="flex items-center justify-between px-4 mt-2">
         {steps.map((label, i) => {
           const done = i < current;
           const act = i === current;
           return (
-            <span
-              key={i}
-              className="text-[10px] font-medium transition-colors"
-              style={{ color: done ? '#4ade80' : act ? 'var(--text-primary)' : 'var(--text-muted)' }}
-            >
-              {label}
-            </span>
+            <Fragment key={`label-${i}`}>
+              <div className="w-7 shrink-0 relative h-4">
+                <span
+                  className="absolute left-1/2 -translate-x-1/2 top-0 text-[10px] font-medium transition-colors whitespace-nowrap text-center"
+                  style={{ color: done ? '#4ade80' : act ? 'var(--text-primary)' : 'var(--text-muted)' }}
+                >
+                  {label}
+                </span>
+              </div>
+              {i < steps.length - 1 && <div className="flex-1 mx-2" />}
+            </Fragment>
           );
         })}
       </div>
@@ -109,7 +113,7 @@ function OtpInput({ value, onChange, disabled }) {
   };
 
   return (
-    <div className="flex gap-2 justify-center">
+    <div className="flex w-full gap-2 justify-center items-center mx-auto">
       {Array.from({ length: 6 }).map((_, i) => (
         <input
           key={i}
