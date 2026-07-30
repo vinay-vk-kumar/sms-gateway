@@ -19,6 +19,11 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <script>
+    if (/bot|googlebot|crawler|spider|robot|crawling/i.test(navigator.userAgent)) {
+      document.documentElement.classList.add('bot-crawler');
+    }
+  </script>
 </head>
 
 <body>
