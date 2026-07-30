@@ -10,7 +10,7 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <group android:scaleX="0.9" android:scaleY="0.9" android:pivotX="54" android:pivotY="54">
+    <group android:scaleX="0.6" android:scaleY="0.6" android:pivotX="54" android:pivotY="54">
         <!-- Speech Bubble -->
         <path
             android:fillColor="#FFFFFF"

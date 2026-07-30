@@ -51,105 +51,26 @@ object ApiClient {
     // ── API methods ───────────────────────────────────────────────────────────
 
     /**
-     * Fetch pending SMS messages for this device.
-     * Backend atomically marks them as "processing" to prevent race conditions.
+     * Send webhook callback to resolve the BullMQ job.
      */
-    fun fetchPendingMessages(context: Context): List<SmsMessage> {
+    fun sendWebhook(context: Context, jobId: String, smsId: String, success: Boolean, reason: String): Boolean {
         val serverUrl    = SecureStorage.getServerUrl(context)
         val deviceId     = SecureStorage.getDeviceId(context)
         val deviceSecret = SecureStorage.getDeviceSecret(context)
 
         if (!SecureStorage.isConfigured(context)) {
-            throw AuthException("No credentials saved. Open Settings and enter Device ID + Secret.")
+            Log.e(TAG, "Cannot send webhook: Device not configured.")
+            return false
         }
-
-        val request = Request.Builder()
-            .url("$serverUrl/api/sms/pending")
-            .addHeader("x-device-id", deviceId)
-            .addHeader("x-device-secret", deviceSecret)
-            .get()
-            .build()
-
-        // Let IOException propagate — caller shows "cannot reach server" message
-        val response = httpClient.newCall(request).execute()
-        val bodyStr  = response.body?.string() ?: "{}"
-
-        if (response.code == 401 || response.code == 403) {
-            Log.e(TAG, "Auth failed (${response.code})")
-            throw AuthException("Wrong Device ID or Secret (${response.code}). Check Settings.")
-        }
-
-        if (!response.isSuccessful) {
-            Log.e(TAG, "fetchPendingMessages server error: ${response.code}")
-            throw IOException("Server error ${response.code}")
-        }
-
-        val json     = JSONObject(bodyStr)
-        val data     = json.optJSONObject("data") ?: return emptyList()
-        val messages = data.optJSONArray("messages") ?: return emptyList()
-
-        val result = mutableListOf<SmsMessage>()
-        for (i in 0 until messages.length()) {
-            val m = messages.getJSONObject(i)
-            result.add(SmsMessage(
-                id      = m.getString("_id"),
-                to      = m.getString("to"),
-                message = m.getString("message"),
-                type    = m.optString("type", "custom")
-            ))
-        }
-        return result
-    }
-
-    /**
-     * Mark multiple messages as successfully delivered.
-     * IDEMPOTENT — safe to call multiple times.
-     */
-    fun markSent(context: Context, ids: List<String>): Boolean {
-        if (ids.isEmpty()) return true
-
-        val serverUrl    = SecureStorage.getServerUrl(context)
-        val deviceId     = SecureStorage.getDeviceId(context)
-        val deviceSecret = SecureStorage.getDeviceSecret(context)
-
-        val body = JSONObject().put("ids", JSONArray(ids)).toString()
-
-        val request = Request.Builder()
-            .url("$serverUrl/api/sms/mark-sent")
-            .addHeader("x-device-id", deviceId)
-            .addHeader("x-device-secret", deviceSecret)
-            .post(body.toRequestBody(JSON_TYPE))
-            .build()
-
-        return try {
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                Log.e(TAG, "markSent failed: ${response.code}")
-            }
-            response.body?.close()
-            response.isSuccessful
-        } catch (e: IOException) {
-            Log.e(TAG, "Network error marking sent: ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * Mark a single message as failed.
-     * Retry logic is handled server-side (max 3 attempts before permanently failed).
-     */
-    fun markFailed(context: Context, id: String, reason: String): Boolean {
-        val serverUrl    = SecureStorage.getServerUrl(context)
-        val deviceId     = SecureStorage.getDeviceId(context)
-        val deviceSecret = SecureStorage.getDeviceSecret(context)
 
         val body = JSONObject()
-            .put("id", id)
+            .put("status", if (success) "sent" else "failed")
+            .put("smsId", smsId)
             .put("error", reason)
             .toString()
 
         val request = Request.Builder()
-            .url("$serverUrl/api/sms/mark-failed")
+            .url("$serverUrl/api/sms/webhook/$jobId")
             .addHeader("x-device-id", deviceId)
             .addHeader("x-device-secret", deviceSecret)
             .post(body.toRequestBody(JSON_TYPE))
@@ -158,12 +79,12 @@ object ApiClient {
         return try {
             val response = httpClient.newCall(request).execute()
             if (!response.isSuccessful) {
-                Log.e(TAG, "markFailed for $id failed: ${response.code}")
+                Log.e(TAG, "sendWebhook failed: ${response.code}")
             }
             response.body?.close()
             response.isSuccessful
         } catch (e: IOException) {
-            Log.e(TAG, "Network error marking failed: ${e.message}")
+            Log.e(TAG, "Network error sending webhook: ${e.message}")
             false
         }
     }

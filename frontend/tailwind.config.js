@@ -4,19 +4,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        vk: {
-          base: '#0a0a0a',
-          surface: '#111111',
-          card: '#161616',
-          elevated: '#1f1f1f',
-          border: '#2a2a2a',
+        background: '#000000',
+        foreground: '#ededed',
+        surface: {
+          DEFAULT: '#0a0a0a',
+          hover: '#141414',
+          active: '#1f1f1f',
+        },
+        border: {
+          DEFAULT: 'rgba(255,255,255,0.1)',
+          hover: 'rgba(255,255,255,0.15)',
+        },
+        primary: {
+          DEFAULT: '#ffffff',
+          inverse: '#000000',
+          muted: '#a1a1aa',
         },
         brand: {
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-        },
+          400: '#e4e4e7',
+          500: '#ffffff',
+          600: '#a1a1aa',
+        }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

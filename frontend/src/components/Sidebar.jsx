@@ -3,8 +3,9 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Smartphone, ScrollText, KeyRound,
-  LogOut, MessageSquare, Menu, X,
+  LogOut, Menu, X, Download
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -37,9 +38,9 @@ function NavItem({ to, label, icon: Icon, end, onClick }) {
             }
           }}
         >
-          <Icon size={15} strokeWidth={isActive ? 2 : 1.75} style={{ color: isActive ? '#818cf8' : 'inherit', flexShrink: 0 }} />
+          <Icon size={15} strokeWidth={isActive ? 2 : 1.75} style={{ color: isActive ? '#ffffff' : 'inherit', flexShrink: 0 }} />
           <span className="flex-1 truncate">{label}</span>
-          {isActive && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#818cf8' }} />}
+          {isActive && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#ffffff' }} />}
         </div>
       )}
     </NavLink>
@@ -55,10 +56,9 @@ function LogoBar({ onClose }) {
     >
       <div className="flex items-center gap-2.5">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: 'linear-gradient(135deg,#6366f1,#7c3aed)', boxShadow: '0 0 16px rgba(99,102,241,0.28)' }}
+          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-transparent"
         >
-          <MessageSquare size={15} className="text-white" strokeWidth={2.5} />
+          <img src="/logo.png" alt="SMSGW Logo" className="w-full h-full object-cover scale-[1.3]" />
         </div>
         <div>
           <p className="font-semibold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>SMS Gateway</p>
@@ -75,7 +75,7 @@ function LogoBar({ onClose }) {
   );
 }
 
-/* ── Nav + user footer (NO logo inside — avoids duplication) ── */
+/* ── Nav + user footer ── */
 function SidebarContent({ onNavClick }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -105,7 +105,7 @@ function SidebarContent({ onNavClick }) {
         >
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-            style={{ background: 'linear-gradient(135deg,#6366f1,#7c3aed)' }}
+            style={{ background: '#222222' }}
           >
             {user?.email?.[0]?.toUpperCase() || 'U'}
           </div>
@@ -173,10 +173,9 @@ export default function Sidebar() {
       >
         <div className="flex items-center gap-2">
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: 'linear-gradient(135deg,#6366f1,#7c3aed)' }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-transparent"
           >
-            <MessageSquare size={13} className="text-white" strokeWidth={2.5} />
+            <img src="/logo.png" alt="SMSGW Logo" className="w-full h-full object-cover" />
           </div>
           <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>SMS Gateway</span>
         </div>
@@ -186,20 +185,32 @@ export default function Sidebar() {
       </header>
 
       {/* ─── Mobile drawer ────────────────────────────────────── */}
-      {open && (
-        <>
-          {/* Backdrop */}
-          <div className="mobile-drawer-overlay" onClick={() => setOpen(false)} />
+      <AnimatePresence>
+        {open && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mobile-drawer-overlay"
+              onClick={() => setOpen(false)}
+            />
 
-          <div
-            className="mobile-drawer-panel flex flex-col"
-            style={{ background: 'var(--bg-surface)' }}
-          >
-            <LogoBar onClose={() => setOpen(false)} />
-            <SidebarContent onNavClick={() => setOpen(false)} />
-          </div>
-        </>
-      )}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', ease: 'easeOut', duration: 0.25 }}
+              className="mobile-drawer-panel flex flex-col fixed top-0 left-0 h-full w-[260px] z-[60] shadow-2xl"
+              style={{ background: 'var(--bg-surface)' }}
+            >
+              <LogoBar onClose={() => setOpen(false)} />
+              <SidebarContent onNavClick={() => setOpen(false)} />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }

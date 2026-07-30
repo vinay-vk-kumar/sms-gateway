@@ -1,14 +1,3 @@
-/**
- * Security model:
- * - On registration, backend generates a plain `deviceSecret`
- * - Plain secret is shown ONCE in the API response and never stored
- * - Only the bcrypt hash (`deviceSecretHash`) is stored in DB
- * - Android app stores the plain secret in EncryptedSharedPreferences
- * - Every API call from the device sends: x-device-id + x-device-secret
- * - Backend verifies: bcrypt.compare(incoming, hash)
- *
- *  */
-
 const mongoose = require('mongoose');
 
 const deviceSchema = new mongoose.Schema({

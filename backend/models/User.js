@@ -1,5 +1,3 @@
-
-
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
@@ -34,10 +32,21 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
 
-  passwordResetOtp: { type: String, default: null },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  emailVerificationToken: { type: String, default: null },
+  emailVerificationExpiry: { type: Date, default: null },
+  emailVerificationCount: { type: Number, default: 0 },
+  emailVerificationDate: { type: String, default: null },
+
+  passwordResetToken: { type: String, default: null },
   passwordResetExpiry: { type: Date, default: null },
   passwordResetCount: { type: Number, default: 0 },
   passwordResetDate: { type: String, default: null },
+
+  emailDailyLimit: { type: Number, default: 5 },
 
   dailySmsLimit: { type: Number, default: 1000 },
   minuteSmsLimit: { type: Number, default: 30 },

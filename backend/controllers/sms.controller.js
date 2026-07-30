@@ -1,5 +1,3 @@
-
-
 const Joi = require('joi');
 const mongoose = require('mongoose');
 
@@ -7,8 +5,6 @@ const SmsQueue = require('../models/SmsQueue');
 const Device = require('../models/Device');
 const { success, error } = require('../utils/apiResponse');
 
-// BullMQ queue — imported lazily to avoid circular dependency issues
-// The queue is initialized in server.js (Stage 3), accessed here via require
 const getQueue = () => {
   try {
     const { getSmsQueue } = require('../queue/sms.queue');
@@ -39,6 +35,7 @@ const queueSchema = Joi.object({
     .valid('otp', 'welcome', 'forgot-password', 'custom')
     .default('custom'),
   idempotencyKey: Joi.string().max(255).optional(),
+  webhookUrl: Joi.string().uri().max(500).optional(),
 });
 
 const markSentSchema = Joi.object({
@@ -54,13 +51,13 @@ const markFailedSchema = Joi.object({
 });
 
 const queue = async (req, res) => {
-  
+
   const { error: validationError, value } = queueSchema.validate(req.body, { abortEarly: true });
   if (validationError) {
     return error(res, validationError.details[0].message, 400);
   }
 
-  const { to, message, deviceId, type, idempotencyKey } = value;
+  const { to, message, deviceId, type, idempotencyKey, webhookUrl } = value;
 
   if (!mongoose.Types.ObjectId.isValid(deviceId)) {
     return error(res, 'Invalid deviceId format', 400);
@@ -98,6 +95,7 @@ const queue = async (req, res) => {
       message,
       type,
       idempotencyKey: idempotencyKey || null,
+      webhookUrl: webhookUrl || null,
       status: 'pending',
     });
   } catch (dbErr) {
@@ -117,21 +115,39 @@ const queue = async (req, res) => {
 
   const bullQueue = getQueue();
   if (bullQueue) {
-    await bullQueue.add('send-sms', {
-      smsId: smsRecord._id.toString(),
-      deviceId: device._id.toString(),
-      fcmToken: device.fcmToken,
-      userId: req.user._id.toString(),
-      pendingCount,
-    }, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 5000 },
-      removeOnComplete: 100,   // Keep last 100 completed jobs
-      removeOnFail: false,     // Keep all failed jobs for DLQ inspection
-    });
+    try {
+      const addJobPromise = bullQueue.add('send-sms', {
+        smsId: smsRecord._id.toString(),
+        deviceId: device._id.toString(),
+        fcmToken: device.fcmToken,
+        userId: req.user._id.toString(),
+        pendingCount,
+        to,
+        message,
+      }, {
+        attempts: 5,                             // 5 attempts max
+        backoff: { type: 'fixed', delay: 5000 }, // 5-second delay between attempts
+        removeOnComplete: true,                  // Delete from Redis on success
+        removeOnFail: true,                      // Delete from Redis on failure
+      });
+
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Redis connection timeout')), 3000);
+      });
+
+      // Wait for BullMQ to add the job, but timeout if Redis is offline
+      await Promise.race([addJobPromise, timeoutPromise]);
+      clearTimeout(timeoutId); // Prevent memory leak / unhandled rejection
+    } catch (err) {
+      console.error('[SMS] Failed to queue job (Redis down?):', err.message);
+      smsRecord.status = 'failed';
+      smsRecord.error = 'Queue error: System temporarily unavailable';
+      await smsRecord.save();
+      return error(res, 'System temporarily unavailable. Please try again later.', 503);
+    }
   } else {
-    // Stage 3 not yet set up — log and continue (WorkManager polling is the fallback)
-    console.log('[SMS] BullMQ not initialized — SMS queued for WorkManager polling only.');
+    console.log('[SMS] BullMQ not initialized — Queueing failed.');
   }
 
   console.log(`[SMS] Queued: ${to} via device ${device.deviceName} (${smsRecord._id})`);
@@ -139,133 +155,61 @@ const queue = async (req, res) => {
   return success(res, { messageId: smsRecord._id, status: 'pending' }, 201);
 };
 
-const getPending = async (req, res) => {
-  const deviceId = req.device._id;
+const webhookCallback = async (req, res) => {
+  const { jobId } = req.params;
+  const { status, error: failureReason, smsId } = req.body;
 
-  // If the Android app fetched messages but crashed / lost network before
-  // calling mark-sent or mark-failed, they get stuck in "processing" forever.
-  // We reset any message that has been in "processing" for > 5 minutes.
-  const staleThreshold = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
-  const resetResult = await SmsQueue.updateMany(
-    { deviceId, status: 'processing', updatedAt: { $lt: staleThreshold } },
-    { $set: { status: 'pending' } }
-  );
-  if (resetResult.modifiedCount > 0) {
-    console.log(`[SMS] Reset ${resetResult.modifiedCount} stale processing message(s) → pending for device ${deviceId}`);
+  if (!jobId || !smsId) {
+    return error(res, 'Missing jobId or smsId', 400);
   }
 
-  const candidates = await SmsQueue.find({ deviceId, status: 'pending' })
-    .sort({ createdAt: 1 })
-    .limit(10)
-    .select('_id to message type retries createdAt')
-    .lean();
-
-  if (candidates.length === 0) {
-    // Still update lastSeenAt so the device shows as "online" in dashboard
-    await Device.findByIdAndUpdate(deviceId, { lastSeenAt: new Date() });
-    return success(res, { messages: [] });
-  }
-
-  const ids = candidates.map((m) => m._id);
-
-  // Only updates documents STILL in "pending" state
-  // Safe against concurrent requests from the same device or WorkManager
-  const updateResult = await SmsQueue.updateMany(
-    { _id: { $in: ids }, status: 'pending' },
-    { $set: { status: 'processing' } }
-  );
-
-  // Update lastSeenAt on the device (heartbeat)
-  await Device.findByIdAndUpdate(deviceId, { lastSeenAt: new Date() });
-
-  console.log(
-    `[SMS] Device ${deviceId} fetched ${updateResult.modifiedCount} messages (locked as processing)`
-  );
-
-  return success(res, { messages: candidates });
-};
-
-const markSent = async (req, res) => {
-  const { error: validationError } = markSentSchema.validate(req.body);
-  if (validationError) {
-    return error(res, validationError.details[0].message, 400);
-  }
-
-  const { ids } = req.body;
-
-  // Validate all IDs are valid ObjectIds
-  const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
-  if (validIds.length !== ids.length) {
-    return error(res, 'One or more message IDs are invalid', 400);
-  }
-
-  // Security: only update messages that belong to THIS device
-  // and are currently "processing" or already "sent" (idempotent)
-  // NOTE: "pending" intentionally excluded — device MUST call /pending first
-  //       which atomically transitions pending → processing (race condition safe)
-  const result = await SmsQueue.updateMany(
-    {
-      _id: { $in: validIds },
-      deviceId: req.device._id,
-      status: { $in: ['processing', 'sent'] },
-    },
-    {
-      $set: { status: 'sent', sentAt: new Date() },
-    }
-  );
-
-  console.log(`[SMS] Marked ${result.modifiedCount}/${validIds.length} messages as sent`);
-
-  return success(res, {
-    marked: result.modifiedCount,
-    total: validIds.length,
-  });
-};
-
-const markFailed = async (req, res) => {
-  const { error: validationError, value } = markFailedSchema.validate(req.body);
-  if (validationError) {
-    return error(res, validationError.details[0].message, 400);
-  }
-
-  const { id, error: failureReason } = value;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return error(res, 'Invalid message ID', 400);
-  }
-
-  // Security: message must belong to this device
-  const sms = await SmsQueue.findOne({ _id: id, deviceId: req.device._id });
+  const sms = await SmsQueue.findOne({ _id: smsId, deviceId: req.device._id });
   if (!sms) {
     return error(res, 'Message not found or does not belong to this device', 404);
   }
 
-  // Already permanently failed — idempotent
-  if (sms.status === 'failed') {
-    return success(res, { status: 'failed', message: 'Already marked as failed' });
-  }
-
-  sms.retries += 1;
-
-  if (sms.retries >= 3) {
-    // Permanently failed after 3 attempts
-    sms.status = 'failed';
-    sms.error = failureReason || 'Max retries reached';
-    console.log(`[SMS] Permanently failed after ${sms.retries} retries: ${id}`);
+  if (status === 'sent') {
+    sms.status = 'sent';
+    sms.sentAt = new Date();
+    await sms.save();
   } else {
-    // Still has retries left — put back to pending for WorkManager to pick up
-    sms.status = 'pending';
-    sms.error = failureReason;
-    console.log(`[SMS] Attempt ${sms.retries}/3 failed for ${id} — reset to pending`);
+    // Only used if BullMQ is disabled. Otherwise BullMQ handles tracking retries.
+    sms.retries += 1;
+    sms.status = sms.retries >= 24 ? 'failed' : 'pending';
+    sms.error = failureReason || 'Unknown Android error';
+    await sms.save();
   }
 
-  await sms.save();
+  // Dispatch Outbound Webhook if configured (Fire and Forget)
+  if (sms.webhookUrl) {
+    const axios = require('axios');
+    axios.post(sms.webhookUrl, {
+      messageId: sms._id,
+      to: sms.to,
+      status: sms.status,
+      error: sms.error,
+      sentAt: sms.sentAt,
+      type: sms.type,
+      idempotencyKey: sms.idempotencyKey
+    }, { timeout: 10000 }).catch(err => {
+      console.error(`[Webhook] Failed to send outbound webhook to ${sms.webhookUrl}:`, err.message);
+    });
+  }
 
-  return success(res, {
-    status: sms.status,
-    retries: sms.retries,
-    willRetry: sms.status === 'pending',
-  });
+  // Heartbeat
+  await Device.findByIdAndUpdate(req.device._id, { lastSeenAt: new Date() });
+
+  // Publish to Redis to resolve BullMQ worker
+  const { getRedisClient } = require('../config/redis');
+  const publisher = getRedisClient();
+
+  if (status === 'sent') {
+    publisher.publish(`webhook:${jobId}`, 'SUCCESS');
+  } else {
+    publisher.publish(`webhook:${jobId}`, `FAILED: ${failureReason || 'Unknown error'}`);
+  }
+
+  return success(res, { message: 'Webhook processed successfully' });
 };
 
 const getLogs = async (req, res) => {
@@ -318,7 +262,7 @@ const getStats = async (req, res) => {
   const userId = req.user._id;
 
   const now = new Date();
-  
+
   // Use UTC boundaries for MongoDB `$match` to perfectly align with `$dateToString` (which uses UTC)
   const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
@@ -354,7 +298,7 @@ const getStats = async (req, res) => {
               _id: {
                 $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
               },
-              sent:   { $sum: { $cond: [{ $eq: ['$status', 'sent']   }, 1, 0] } },
+              sent: { $sum: { $cond: [{ $eq: ['$status', 'sent'] }, 1, 0] } },
               failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
             },
           },
@@ -364,9 +308,9 @@ const getStats = async (req, res) => {
     },
   ]);
 
-  const total      = result.total[0]?.n       ?? 0;
-  const sentAll    = result.sentAll[0]?.n      ?? 0;
-  const sentToday  = result.sentToday[0]?.n    ?? 0;
+  const total = result.total[0]?.n ?? 0;
+  const sentAll = result.sentAll[0]?.n ?? 0;
+  const sentToday = result.sentToday[0]?.n ?? 0;
   const failedToday = result.failedToday[0]?.n ?? 0;
   const successRate = total > 0 ? Math.round((sentAll / total) * 100) : 0;
 
@@ -378,11 +322,11 @@ const getStats = async (req, res) => {
     // Generate each day strictly in UTC to match MongoDB's `$dateToString` output
     const d = new Date(Date.UTC(sevenDaysAgo.getUTCFullYear(), sevenDaysAgo.getUTCMonth(), sevenDaysAgo.getUTCDate() + i));
     const dateKey = d.toISOString().slice(0, 10); // 'YYYY-MM-DD' in UTC
-    const label   = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
     return {
-      date:   dateKey,
-      day:    label,
-      sent:   chartMap[dateKey]?.sent   ?? 0,
+      date: dateKey,
+      day: label,
+      sent: chartMap[dateKey]?.sent ?? 0,
       failed: chartMap[dateKey]?.failed ?? 0,
     };
   });
@@ -397,4 +341,48 @@ const getStats = async (req, res) => {
   });
 };
 
-module.exports = { queue, getPending, markSent, markFailed, getLogs, getStats };
+const getStatus = async (req, res) => {
+  const { messageId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(messageId)) {
+    return error(res, 'Invalid message ID format', 400);
+  }
+
+  const query = { _id: messageId, userId: req.user._id };
+
+  // Initial check
+  let message = await SmsQueue.findOne(query)
+    .select('_id to status error sentAt createdAt')
+    .lean();
+
+  if (!message) {
+    return error(res, 'Message not found', 404);
+  }
+
+  // Long Polling: Hold up to 3 seconds if the message is still queued
+  let attempts = 0;
+  while ((message.status === 'pending' || message.status === 'processing') && attempts < 6) {
+    await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+    message = await SmsQueue.findOne(query)
+      .select('_id to status error sentAt createdAt')
+      .lean();
+    attempts++;
+  }
+
+  return success(res, {
+    messageId: message._id,
+    to: message.to,
+    status: message.status,
+    error: message.error,
+    sentAt: message.sentAt,
+    createdAt: message.createdAt
+  });
+};
+
+module.exports = {
+  queue,
+  webhookCallback,
+  getLogs,
+  getStats,
+  getStatus
+};

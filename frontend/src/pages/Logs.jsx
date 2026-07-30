@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/axios';
 import { handleApiError } from '../api/errorHandler';
 import StatusBadge from '../components/StatusBadge';
@@ -31,7 +31,7 @@ function FilterPill({ label, onRemove }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-      style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8' }}
+      style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
     >
       {label}
       <button
@@ -42,6 +42,54 @@ function FilterPill({ label, onRemove }) {
         <X size={10} />
       </button>
     </span>
+  );
+}
+
+function CustomSelect({ options, value, onChange, placeholder, icon: Icon, className = '' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+
+  useEffect(() => {
+    const clickOut = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', clickOut);
+    return () => document.removeEventListener('mousedown', clickOut);
+  }, []);
+
+  const selectedOpt = options.find(o => o.value === value);
+
+  return (
+    <div className={`relative ${className}`} ref={ref}>
+      {Icon && <Icon size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />}
+      <div
+        className="input pl-8 pr-3 py-2 text-xs flex items-center justify-between cursor-pointer w-full select-none"
+        style={{ background: 'var(--bg-surface)' }}
+        onClick={() => setOpen(!open)}
+      >
+        <span className={!value ? 'text-gray-300' : 'text-white'}>
+          {selectedOpt ? selectedOpt.label : placeholder}
+        </span>
+        <ChevronRight size={12} className={`transition-transform ${open ? 'rotate-90' : ''}`} style={{ color: 'var(--text-muted)' }} />
+      </div>
+      {open && (
+        <div className="absolute top-full left-0 w-full mt-1.5 rounded-md border border-white/10 overflow-hidden z-50 shadow-xl" style={{ background: '#0a0a0a' }}>
+          <div
+            className="px-3 py-2.5 text-xs cursor-pointer hover:bg-white/5 transition-colors text-zinc-400"
+            onClick={() => { onChange(''); setOpen(false); }}
+          >
+            {placeholder}
+          </div>
+          {options.map(opt => (
+            <div
+              key={opt.value}
+              className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-white/5 transition-colors ${value === opt.value ? 'bg-white/10 text-white' : 'text-zinc-300'}`}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -73,12 +121,9 @@ export default function Logs() {
     } finally {
       setLoading(false);
     }
-  }, [page, status, deviceId]);   // ← recreated only when these change
+  }, [page, status, deviceId]);
 
-  // Single effect — fires once on mount and whenever load() changes
   useEffect(() => { load(); }, [load]);
-
-  // Fetch devices for the filter dropdown (once)
   useEffect(() => {
     api.get('/api/devices')
       .then(({ data }) => setDevices(data.data.devices || []))
@@ -108,7 +153,7 @@ export default function Logs() {
   const clearAll = () => { handleStatusChange(''); handleDeviceChange(''); setSearch(''); };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-5 max-w-[1400px] animate-fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-5 animate-fade-in w-full">
 
       {/* Header */}
       <div className="page-header flex-wrap gap-3">
@@ -128,10 +173,10 @@ export default function Logs() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
 
         {/* Search */}
-        <div className="relative flex-1 min-w-[160px] max-w-xs">
+        <div className="relative flex-1 w-full sm:w-auto min-w-[160px] sm:max-w-xs">
           <Search
             size={13}
             className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -154,40 +199,25 @@ export default function Logs() {
         </div>
 
         {/* Status filter */}
-        <div className="relative">
-          <SlidersHorizontal
-            size={13}
-            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: 'var(--text-muted)' }}
-          />
-          <select
-            className="input pl-8 pr-3 py-2 text-xs appearance-none cursor-pointer min-w-[140px]"
-            value={status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            style={{ background: 'var(--bg-surface)' }}
-          >
-            <option value="">All statuses</option>
-            {STATUS_OPTS.map((s) => (
-              <option key={s} value={s} style={{ background: '#111' }}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSelect
+          className="w-full sm:w-auto sm:min-w-[140px]"
+          icon={SlidersHorizontal}
+          placeholder="All statuses"
+          value={status}
+          onChange={handleStatusChange}
+          options={STATUS_OPTS.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+        />
 
         {/* Device filter */}
         {devices.length > 0 && (
-          <select
-            className="input pr-3 py-2 text-xs appearance-none cursor-pointer min-w-[150px]"
+          <CustomSelect
+            className="w-full sm:w-auto sm:min-w-[150px]"
+            icon={SlidersHorizontal}
+            placeholder="All devices"
             value={deviceId}
-            onChange={(e) => handleDeviceChange(e.target.value)}
-            style={{ background: 'var(--bg-surface)' }}
-          >
-            <option value="">All devices</option>
-            {devices.map((d) => (
-              <option key={d._id} value={d._id} style={{ background: '#111' }}>{d.deviceName}</option>
-            ))}
-          </select>
+            onChange={handleDeviceChange}
+            options={devices.map(d => ({ value: d._id, label: d.deviceName }))}
+          />
         )}
       </div>
 

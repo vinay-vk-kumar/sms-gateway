@@ -4,10 +4,11 @@ import { handleApiError, getErrorMessage } from '../api/errorHandler';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import {
-  Smartphone, Plus, Wifi, WifiOff, Trash2,
+  Smartphone, Plus, Wifi, WifiOff, Trash2, Edit2,
   Copy, X, AlertTriangle, RefreshCw, Check,
   Clock, MessageSquare, ShieldCheck, AlertCircle,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 /* Relative time */
 const relativeTime = (date) => {
@@ -33,7 +34,7 @@ function CopyBtn({ text }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Copy failed — please select manually');
+      toast.error('Failed to copy to clipboard.');
     }
   };
   return (
@@ -66,160 +67,183 @@ function CredRow({ label, value, icon: Icon, color }) {
 
 /* Add Device Modal */
 function AddDeviceModal({ onClose, onAdded }) {
-  const [name, setName] = useState('');
-  const [token, setToken] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [secret, setSecret] = useState(null);
-  const [devId, setDevId] = useState(null);
-  const [errors, setErrors] = useState({});
+  const [pairingToken, setPairingToken] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (secret) return;
     const fn = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', fn);
     return () => document.removeEventListener('keydown', fn);
-  }, [secret, onClose]);
+  }, [onClose]);
 
-  const validate = () => {
-    const e = {};
-    if (!name.trim()) e.name = 'Device name is required';
-    if (!token.trim()) e.token = 'FCM token is required';
-    return e;
-  };
+  useEffect(() => {
+    let interval;
+    let isMounted = true;
+    const initPairing = async () => {
+      try {
+        const { data } = await api.post('/api/devices/pairing-session');
+        if (!isMounted) return;
 
-  const submit = async (ev) => {
-    ev.preventDefault();
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
+        setPairingToken(data.data.pairingToken);
+        setLoading(false);
+
+        // Start polling
+        interval = setInterval(async () => {
+          try {
+            const res = await api.get(`/api/devices/pairing-status?token=${data.data.pairingToken}`);
+            if (res.data.data.status === 'completed') {
+              clearInterval(interval);
+              if (isMounted) {
+                toast.success('Device linked successfully.');
+                onAdded();
+              }
+            }
+          } catch (e) {
+            // ignore temporary polling errors
+          }
+        }, 2000);
+      } catch (err) {
+        if (isMounted) {
+          handleApiError(err, 'Failed to initialize pairing');
+          onClose();
+        }
+      }
+    };
+    initPairing();
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [onAdded, onClose]);
+
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin);
+
+  const qrPayload = pairingToken ? JSON.stringify({
+    action: 'smsgw_pair',
+    token: pairingToken,
+    url: baseUrl
+  }) : '';
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal animate-slide-up w-full max-w-sm">
+
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+              <Smartphone size={14} style={{ color: '#818cf8' }} />
+            </div>
+            <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+              Link New Device
+            </h2>
+          </div>
+          <button onClick={onClose} className="btn-icon"><X size={15} /></button>
+        </div>
+
+        {/* Form */}
+        <div className="p-6 flex flex-col items-center justify-center">
+          {loading ? (
+            <div className="flex flex-col items-center gap-3 py-10">
+              <span className="spinner w-6 h-6 border-2" />
+              <p className="text-xs text-zinc-400">Generating pairing code...</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-400 mb-6 text-center leading-relaxed">
+                Open the SMS Gateway app on your Android device and tap <strong className="text-white">Scan QR</strong> to link it to your account.
+              </p>
+
+              <div className="p-3 bg-white rounded-xl shadow-lg mb-6">
+                <QRCodeSVG value={qrPayload} size={200} level="M" />
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-zinc-500 bg-white/5 px-4 py-2 rounded-full">
+                <span className="spinner w-3 h-3 border-[1.5px]" />
+                Waiting for device to scan...
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Rename Modal */
+function RenameModal({ device, onClose, onRenamed }) {
+  const [name, setName] = useState(device?.deviceName || '');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name.trim() || name === device.deviceName) {
+      onClose();
+      return;
+    }
     setLoading(true);
     try {
-      const { data } = await api.post('/api/devices/register', { fcmToken: token.trim(), deviceName: name.trim() });
-      setSecret(data.data.deviceSecret);
-      setDevId(data.data.deviceId);
-      onAdded();
-      toast.success('Device registered!');
+      await api.put(`/api/devices/${device._id}`, { deviceName: name.trim() });
+      toast.success('Device renamed successfully.');
+      onRenamed();
     } catch (err) {
-      const msg = getErrorMessage(err, 'Registration failed');
-      if (err.response?.status === 400 || err.response?.status === 409) {
-        setErrors({ form: msg });
-      } else {
-        handleApiError(err, 'Registration failed');
-      }
+      handleApiError(err, 'Failed to rename device');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget && !secret) onClose(); }}>
-      <div className="modal animate-slide-up w-full">
+  if (!device) return null;
 
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={secret
-                ? { background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }
-                : { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }
-              }
-            >
-              {secret
-                ? <AlertTriangle size={14} style={{ color: '#fbbf24' }} />
-                : <Smartphone size={14} style={{ color: '#818cf8' }} />
-              }
-            </div>
-            <h2 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-              {secret ? 'Save Your Credentials' : 'Register New Device'}
-            </h2>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="card relative w-full max-w-md p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: 10 }}>
+        <button onClick={onClose} className="absolute right-4 top-4 text-zinc-400 hover:text-white transition-colors"><X size={20} /></button>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <Edit2 size={18} className="text-white" />
           </div>
-          {!secret && (
-            <button onClick={onClose} className="btn-icon"><X size={15} /></button>
-          )}
+          <div>
+            <h3 className="text-lg font-semibold text-white">Rename Device</h3>
+            <p className="text-sm text-zinc-400">Update how this device appears in your dashboard</p>
+          </div>
         </div>
 
-        {/* Form */}
-        {!secret && (
-          <form onSubmit={submit} className="p-5 space-y-4">
-            {errors.form && (
-              <div
-                className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-xs"
-                style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)', color: '#fca5a5' }}
-              >
-                <AlertCircle size={12} className="shrink-0 mt-0.5" />{errors.form}
-              </div>
-            )}
-
-            <div>
-              <label className="label">Device Name</label>
-              <input
-                className={`input ${errors.name ? 'input-error' : ''}`}
-                placeholder="My Device"
-                value={name}
-                onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: undefined })); }}
-                autoFocus
-              />
-              {errors.name && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.name}</p>}
-            </div>
-
-            <div>
-              <label className="label">
-                FCM Token
-                <span className="label-hint ml-1.5">(Android app → Settings → Copy token)</span>
-              </label>
-              <textarea
-                className={`input resize-none h-24 font-mono text-xs leading-relaxed ${errors.token ? 'input-error' : ''}`}
-                placeholder="Paste your FCM registration token here…"
-                value={token}
-                onChange={(e) => { setToken(e.target.value); setErrors((p) => ({ ...p, token: undefined })); }}
-              />
-              {errors.token && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{errors.token}</p>}
-            </div>
-
-            <div className="flex gap-2 pt-1">
-              <button type="button" onClick={onClose} className="btn-secondary flex-1 text-sm">Cancel</button>
-              <button type="submit" disabled={loading} className="btn-primary flex-1 text-sm">
-                {loading ? <><span className="spinner" />&nbsp;Registering…</> : 'Register Device'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* One-time secret display */}
-        {secret && (
-          <div className="p-5 space-y-4">
-            <div
-              className="flex items-start gap-2.5 p-3.5 rounded-lg text-xs"
-              style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.18)', color: '#fcd34d' }}
-            >
-              <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-              <p>
-                <strong>Shown only once.</strong> Copy and paste both values into your Android app Settings screen. This dialog cannot be reopened.
-              </p>
-            </div>
-
-            <CredRow label="Device ID" value={devId} icon={ShieldCheck} color="#818cf8" />
-            <CredRow label="Device Secret" value={secret} icon={ShieldCheck} color="#4ade80" />
-
-            <button onClick={onClose} className="btn-primary w-full text-sm">
-              <Check size={14} /> I've saved both — Done
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">Device Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="input w-full"
+              placeholder="e.g. My Primary Phone"
+              maxLength={100}
+              autoFocus
+            />
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={loading || !name.trim() || name === device.deviceName} className="btn-primary flex-1">
+              {loading ? <><span className="spinner" />&nbsp;Saving…</> : 'Save Changes'}
             </button>
           </div>
-        )}
+        </form>
       </div>
     </div>
   );
 }
 
 /* Device Card */
-function DeviceCard({ device, onDelete }) {
-  const online = device.isOnline;
+function DeviceCard({ device, onDelete, onEdit }) {
+  const online = true;
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(device._id);
     setCopied(true);
-    toast.success('Device ID copied to clipboard!', {
+    toast.success('Device ID copied to clipboard.', {
       icon: '📋',
       style: { borderRadius: '10px', background: '#333', color: '#fff' }
     });
@@ -233,13 +257,9 @@ function DeviceCard({ device, onDelete }) {
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{
-                background: online ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${online ? 'rgba(34,197,94,0.2)' : 'var(--border)'}`,
-              }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/10 bg-white/5"
             >
-              <Smartphone size={17} style={{ color: online ? '#4ade80' : 'var(--text-muted)' }} strokeWidth={1.75} />
+              <Smartphone size={17} style={{ color: 'var(--text-primary)' }} strokeWidth={1.75} />
             </div>
             {online && (
               <span
@@ -253,8 +273,9 @@ function DeviceCard({ device, onDelete }) {
           <div className="min-w-0 flex flex-col">
             <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{device.deviceName}</p>
             <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Device ID:</span>
               <p className="text-[11px] font-mono truncate" style={{ color: 'var(--text-muted)' }} title={device._id}>
-                {String(device._id).slice(0, 16)}…
+                {String(device._id).slice(0, 20)}…
               </p>
               <button
                 onClick={handleCopy}
@@ -267,15 +288,26 @@ function DeviceCard({ device, onDelete }) {
             </div>
           </div>
         </div>
-        <button
-          onClick={() => onDelete(device._id, device.deviceName)}
-          className="btn-icon shrink-0"
-          title="Remove device"
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(239,68,68,0.07)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-        >
-          <Trash2 size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onEdit(device)}
+            className="btn-icon shrink-0"
+            title="Rename device"
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            <Edit2 size={14} />
+          </button>
+          <button
+            onClick={() => onDelete(device._id, device.deviceName)}
+            className="btn-icon shrink-0"
+            title="Remove device"
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(239,68,68,0.07)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
 
       <hr className="divider" />
@@ -283,8 +315,8 @@ function DeviceCard({ device, onDelete }) {
       {/* Stats row */}
       <div className="flex items-center justify-between text-xs">
         <span className="flex items-center gap-1.5" style={{ color: online ? '#4ade80' : 'var(--text-muted)' }}>
-          {online ? <Wifi size={12} /> : <WifiOff size={12} />}
-          {online ? 'Online' : 'Offline'}
+          <Wifi size={12} />
+          Ready
         </span>
         <span className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
           <Clock size={11} /> {relativeTime(device.lastSeenAt)}
@@ -321,6 +353,7 @@ export default function Devices() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [renameTarget, setRenameTarget] = useState(null);
   const [delTarget, setDelTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -340,12 +373,16 @@ export default function Devices() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleEdit = (device) => {
+    setRenameTarget(device);
+  };
+
   const confirmDelete = async () => {
     if (!delTarget) return;
     setDeleting(true);
     try {
       await api.delete(`/api/devices/${delTarget.id}`);
-      toast.success(`"${delTarget.name}" removed`);
+      toast.success('Device removed successfully.');
       setDevices((prev) => prev.filter((d) => d._id !== delTarget.id));
       setDelTarget(null);
     } catch (err) {
@@ -359,7 +396,7 @@ export default function Devices() {
   const offline = devices.length - online;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-5 max-w-[1200px] animate-fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-5 animate-fade-in w-full">
 
       {/* Header */}
       <div className="page-header flex-wrap gap-3">
@@ -378,22 +415,6 @@ export default function Devices() {
         </div>
       </div>
 
-      {/* Summary */}
-      {!loading && !error && devices.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap animate-fade-in">
-          <span className="chip">
-            <span className="online-dot" />
-            {online} online
-          </span>
-          {offline > 0 && (
-            <span className="chip" style={{ color: 'var(--text-muted)' }}>{offline} offline</span>
-          )}
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {devices.length} device{devices.length !== 1 ? 's' : ''} total
-          </span>
-        </div>
-      )}
-
       {/* Error */}
       {error && (
         <div className="card p-5 flex items-center gap-3" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.15)' }}>
@@ -407,7 +428,7 @@ export default function Devices() {
 
       {/* Skeletons */}
       {loading && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {Array(3).fill(0).map((_, i) => <DeviceSk key={i} />)}
         </div>
       )}
@@ -432,15 +453,21 @@ export default function Devices() {
 
       {/* Grid */}
       {!loading && !error && devices.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {devices.map((d) => (
-            <DeviceCard key={d._id} device={d} onDelete={(id, name) => setDelTarget({ id, name })} />
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          {devices.map(d => (
+            <DeviceCard
+              key={d._id}
+              device={d}
+              onDelete={(id, name) => setDelTarget({ id, name })}
+              onEdit={handleEdit}
+            />
           ))}
         </div>
       )}
 
       {/* Modals */}
-      {showAdd && <AddDeviceModal onClose={() => setShowAdd(false)} onAdded={load} />}
+      {showAdd && <AddDeviceModal onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); load(); }} />}
+      {renameTarget && <RenameModal device={renameTarget} onClose={() => setRenameTarget(null)} onRenamed={() => { setRenameTarget(null); load(); }} />}
 
       <ConfirmModal
         isOpen={!!delTarget}

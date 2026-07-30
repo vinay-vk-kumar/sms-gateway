@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import api from '../api/axios';
 import { handleApiError } from '../api/errorHandler';
 import StatusBadge from '../components/StatusBadge';
@@ -23,10 +24,9 @@ function StatCard({ icon: Icon, label, value, sub, accent, loading }) {
     <div className="card p-4 sm:p-5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: `${accent}18`, border: `1px solid ${accent}28` }}
+          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-white/10 bg-white/5"
         >
-          <Icon size={15} style={{ color: accent }} strokeWidth={2} />
+          <Icon size={15} className="text-zinc-300" strokeWidth={2} />
         </div>
         <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
           {label}
@@ -36,11 +36,11 @@ function StatCard({ icon: Icon, label, value, sub, accent, loading }) {
         {loading
           ? <><Sk className="h-8 w-20 mb-1" /><Sk className="h-3 w-16 mt-2" /></>
           : <>
-              <p className="text-2xl font-bold leading-none" style={{ color: 'var(--text-primary)' }}>
-                {value ?? '—'}
-              </p>
-              {sub && <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
-            </>
+            <p className="text-2xl font-bold leading-none" style={{ color: 'var(--text-primary)' }}>
+              {value ?? '—'}
+            </p>
+            {sub && <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
+          </>
         }
       </div>
     </div>
@@ -99,11 +99,11 @@ function ErrorBanner({ message, onRetry }) {
 }
 
 export default function Dashboard() {
-  const [stats,   setStats]   = useState(null);
-  const [recent,  setRecent]  = useState([]);
-  const [chart,   setChart]   = useState([]);
+  const [stats, setStats] = useState(null);
+  const [recent, setRecent] = useState([]);
+  const [chart, setChart] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);   // null = no error, string = error message
+  const [error, setError] = useState(null);
   const [updated, setUpdated] = useState(null);
 
   const load = useCallback(async (notify = false) => {
@@ -119,7 +119,7 @@ export default function Dashboard() {
       setChart(s.chart || []);
       setRecent(lr.data.data.messages || []);
       setUpdated(new Date());
-      if (notify) toast.success('Dashboard refreshed');
+      if (notify) toast.success('Dashboard refreshed.');
     } catch (err) {
       const msg = handleApiError(err, 'Failed to load dashboard data');
       setError(msg);
@@ -131,14 +131,20 @@ export default function Dashboard() {
   useEffect(() => { load(); }, [load]);
 
   const STATS = [
-    { icon: MessageSquare, label: 'Total Sent',   value: stats?.sentAll,                           sub: 'All time',       accent: '#818cf8' },
-    { icon: Send,          label: 'Sent Today',   value: stats?.sentToday,                         sub: 'Since midnight', accent: '#4ade80' },
-    { icon: AlertCircle,   label: 'Failed Today', value: stats?.failedToday,                       sub: 'Since midnight', accent: '#f87171' },
-    { icon: TrendingUp,    label: 'Success Rate', value: stats ? `${stats.successRate}%` : null,   sub: 'All time',       accent: '#a78bfa' },
+    { icon: MessageSquare, label: 'Total Sent', value: stats?.sentAll, sub: 'All time', accent: '#818cf8' },
+    { icon: Send, label: 'Sent Today', value: stats?.sentToday, sub: 'Since midnight', accent: '#4ade80' },
+    { icon: AlertCircle, label: 'Failed Today', value: stats?.failedToday, sub: 'Since midnight', accent: '#f87171' },
+    { icon: TrendingUp, label: 'Success Rate', value: stats ? `${stats.successRate}%` : null, sub: 'All time', accent: '#a78bfa' },
   ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 max-w-[1400px] animate-fade-in">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3 }}
+      className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 w-full"
+    >
 
       {/* Header */}
       <div className="page-header flex-wrap gap-3">
@@ -160,9 +166,13 @@ export default function Dashboard() {
       {error && <ErrorBanner message={error} onRetry={() => load()} />}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6"
+      >
         {STATS.map((s) => <StatCard key={s.label} {...s} loading={loading} />)}
-      </div>
+      </motion.div>
 
       {/* Chart */}
       <div className="card p-4 sm:p-5">
@@ -172,7 +182,7 @@ export default function Dashboard() {
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Last 7 days</p>
           </div>
           <div className="flex items-center gap-4">
-            {[{ label: 'Sent', color: '#6366f1' }, { label: 'Failed', color: '#ef4444' }].map(({ label, color }) => (
+            {[{ label: 'Sent', color: '#ffffff' }, { label: 'Failed', color: '#555555' }].map(({ label, color }) => (
               <span key={label} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                 <span className="inline-block w-3 h-[2px] rounded-full" style={{ background: color }} />
                 {label}
@@ -194,20 +204,20 @@ export default function Dashboard() {
                 <AreaChart data={chart} margin={{ top: 4, right: 4, bottom: 0, left: -28 }}>
                   <defs>
                     <linearGradient id="gS" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.22} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#ffffff" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="gF" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.18} />
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#555555" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#555555" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="day" tick={{ fill: '#555', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: '#555', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.05)' }} />
-                  <Area type="monotone" dataKey="sent"   stroke="#6366f1" strokeWidth={1.5} fill="url(#gS)" dot={false} name="Sent" />
-                  <Area type="monotone" dataKey="failed" stroke="#ef4444" strokeWidth={1.5} fill="url(#gF)" dot={false} name="Failed" />
+                  <Area type="monotone" dataKey="sent" stroke="#ffffff" strokeWidth={1.5} fill="url(#gS)" dot={false} name="Sent" />
+                  <Area type="monotone" dataKey="failed" stroke="#555555" strokeWidth={1.5} fill="url(#gF)" dot={false} name="Failed" />
                 </AreaChart>
               </ResponsiveContainer>
             )
@@ -280,6 +290,6 @@ export default function Dashboard() {
           </table>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

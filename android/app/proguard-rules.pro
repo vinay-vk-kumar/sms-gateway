@@ -14,4 +14,4 @@
 -keep class okhttp3.** { *; }
 
 # Keep app classes
--keep class com.smsgw.app.** { *; }
+-keep class com.smsgw.com.** { *; }

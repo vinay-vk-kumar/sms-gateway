@@ -1,49 +1,52 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import api from '../api/axios';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('sms_user') || 'null'); }
-    catch { return null; }
-  });
-  const [token, setToken] = useState(() => {
-    const legacyToken = localStorage.getItem('sms_token');
-    return legacyToken || (localStorage.getItem('sms_user') ? 'cookie_managed' : null);
-  });
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Verify session on mount with the backend
+  useEffect(() => {
+    api.get('/auth/me')
+      .then(res => {
+        if (res.data?.data) {
+          setUser(res.data.data);
+          setToken('cookie_managed'); // Just a flag indicating user have an active session
+        }
+      })
+      .catch(err => {
+        setUser(null);
+        setToken(null);
+      })
+      .finally(() => {
+        setIsInitializing(false);
+      });
+  }, []);
 
   const login = useCallback((tokenVal, userData) => {
-    // tokenVal is ignored as it's set in an HttpOnly cookie, but we keep it in args for backwards compatibility.
-    localStorage.setItem('sms_user', JSON.stringify(userData));
-    setToken('cookie_managed'); // Just a flag to say we are authenticated
+    setToken('cookie_managed');
     setUser(userData);
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      await fetch(import.meta.env.VITE_API_BASE_URL + '/auth/logout', {
-        method: 'POST',
-        credentials: 'true'
-      });
+      await api.post('/auth/logout');
     } catch (e) {
       console.error('Logout request failed', e);
     }
-    localStorage.removeItem('sms_token'); // Clean up old token if it exists
-    localStorage.removeItem('sms_user');
     setToken(null);
     setUser(null);
   }, []);
 
   const updateUser = useCallback((updates) => {
-    setUser(prev => {
-      const next = { ...prev, ...updates };
-      localStorage.setItem('sms_user', JSON.stringify(next));
-      return next;
-    });
+    setUser(prev => ({ ...prev, ...updates }));
   }, []);
 
   return (
-    <AuthContext.Provider value={{ token, user, login, logout, updateUser, isAuth: !!token }}>
+    <AuthContext.Provider value={{ token, user, login, logout, updateUser, isAuth: !!token, isInitializing }}>
       {children}
     </AuthContext.Provider>
   );

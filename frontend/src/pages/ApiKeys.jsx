@@ -20,7 +20,7 @@ function CopyBtn({ text }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Copy failed — please select the key and copy manually');
+      toast.error('Failed to copy to clipboard.');
     }
   };
   return (
@@ -37,10 +37,10 @@ function CodeBlock({ code, lang }) {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      toast.success('Code copied!');
+      toast.success('Copied to clipboard.');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Copy failed');
+      toast.error('Failed to copy to clipboard.');
     }
   };
   return (
@@ -66,8 +66,7 @@ function CodeBlock({ code, lang }) {
 }
 
 const makeSnippets = (baseUrl) => ({
-  curl: `# Linux / macOS / Git Bash
-curl -X POST ${baseUrl}/api/sms/queue \\
+  curl: `curl -X POST ${baseUrl}/api/sms/queue \\
   -H "x-api-key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -77,59 +76,70 @@ curl -X POST ${baseUrl}/api/sms/queue \\
     "type": "otp"
   }'`,
 
-  windows: `# Windows — PowerShell (Invoke-RestMethod)
-Invoke-RestMethod -Method POST \`
+  powershell: `Invoke-RestMethod -Method POST \`
   -Uri "${baseUrl}/api/sms/queue" \`
   -Headers @{ "x-api-key" = "YOUR_API_KEY"; "Content-Type" = "application/json" } \`
-  -Body '{"to":"+91XXXXXXXXXX","message":"Your OTP is 123456","deviceId":"YOUR_DEVICE_ID","type":"otp"}'
+  -Body '{"to":"+91XXXXXXXXXX","message":"Your OTP is 123456","deviceId":"YOUR_DEVICE_ID","type":"otp"}'`,
 
-# Windows — Command Prompt (CMD) / PowerShell
-curl.exe -X POST ${baseUrl}/api/sms/queue -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d "{\\"to\\": \\"+91XXXXXXXXXX\\", \\"message\\": \\"Your OTP is 123456\\", \\"deviceId\\": \\"YOUR_DEVICE_ID\\", \\"type\\": \\"otp\\"}"`,
+  cmd: `curl.exe -X POST ${baseUrl}/api/sms/queue ^
+  -H "x-api-key: YOUR_API_KEY" ^
+  -H "Content-Type: application/json" ^
+  -d "{\\"to\\":\\"+91XXXXXXXXXX\\",\\"message\\":\\"Your OTP is 123456\\",\\"deviceId\\":\\"YOUR_DEVICE_ID\\",\\"type\\":\\"otp\\"}"`,
 
   node: `import axios from 'axios';
 
-const res = await axios.post(
-  '${baseUrl}/api/sms/queue',
-  {
-    to: '+91XXXXXXXXXX',
-    message: 'Your OTP is 123456',
-    deviceId: 'YOUR_DEVICE_ID',
-    type: 'otp',
-  },
-  { headers: { 'x-api-key': 'YOUR_API_KEY' } }
-);
-// { success: true, data: { messageId, status: 'pending' } }`,
+async function sendSms() {
+  try {
+    const response = await axios.post('${baseUrl}/api/sms/queue', {
+      to: '+91XXXXXXXXXX',
+      message: 'Your OTP is 123456',
+      deviceId: 'YOUR_DEVICE_ID',
+      webhookUrl: 'https://your-server.com/sms/callback'
+    }, {
+      headers: {
+        'x-api-key': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log('Success:', response.data);
+  } catch (error) {
+    console.error('Error:', error.response?.data || error.message);
+  }
+}
+
+sendSms();`,
 
   python: `import requests
 
-res = requests.post(
-    '${baseUrl}/api/sms/queue',
-    headers={
-        'x-api-key': 'YOUR_API_KEY',
-        'Content-Type': 'application/json',
-    },
-    json={
-        'to': '+91XXXXXXXXXX',
-        'message': 'Your OTP is 123456',
-        'deviceId': 'YOUR_DEVICE_ID',
-        'type': 'otp',
-    }
-)
-print(res.json())`,
+url = "${baseUrl}/api/sms/queue"
+payload = {
+    "to": "+91XXXXXXXXXX",
+    "message": "Your OTP is 123456",
+    "deviceId": "YOUR_DEVICE_ID",
+    "webhookUrl": "https://your-server.com/sms/callback"
+}
+headers = {
+    "x-api-key": "YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())`,
 });
 
 const TABS = [
   { id: 'curl', label: 'cURL (Linux/Mac)', icon: Terminal },
-  { id: 'windows', label: 'Windows', icon: Terminal },
+  { id: 'powershell', label: 'PowerShell', icon: Terminal },
+  { id: 'cmd', label: 'CMD', icon: Terminal },
   { id: 'node', label: 'Node.js', icon: Code2 },
   { id: 'python', label: 'Python', icon: Code2 },
 ];
 
 const LIMITS = [
-  { v: '10', p: 'per minute', s: 'Per user', color: '#818cf8' },
-  { v: '100', p: 'per day', s: 'Per user', color: '#4ade80' },
-  { v: '3', p: 'per hour', s: 'Per number', color: '#fbbf24' },
-];
+  { v: '30', p: 'per minute', s: 'Per user', color: '#818cf8' },
+  { v: '1000', p: 'per day', s: 'Per user', color: '#4ade80' },
+  { v: '100', p: 'per hour', s: 'Per number', color: '#fbbf24' },
+]
 
 export default function ApiKeys() {
   const { user, updateUser } = useAuth();
@@ -167,22 +177,21 @@ export default function ApiKeys() {
     try {
       const { data } = await api.post('/auth/regenerate-api-key');
       updateUser({ apiKey: data.data.apiKey });
-      toast.success('New API key generated — old key is now invalid');
+      toast.success('API key generated successfully. Previous key revoked.');
       hide();
       setShowConf(false);
     } catch (err) {
-      handleApiError(err, 'Failed to regenerate API key');
+      handleApiError(err, 'Failed to rotate API key');
     } finally {
       setLoading(false);
     }
   };
 
-  // Use the API base URL we configured for axios
   const baseUrl = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:3000' : window.location.origin);
   const snippets = makeSnippets(baseUrl);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-5 max-w-[860px] animate-fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-5 animate-fade-in w-full">
 
       {/* Header */}
       <div>
@@ -194,8 +203,8 @@ export default function ApiKeys() {
       <div className="card p-4 sm:p-6 space-y-4 sm:space-y-5">
         {/* Title row */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-            <KeyRound size={15} style={{ color: '#818cf8' }} />
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <KeyRound size={15} style={{ color: 'var(--text-primary)' }} />
           </div>
           <div>
             <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Production API Key</p>
@@ -223,27 +232,26 @@ export default function ApiKeys() {
           <CopyBtn text={apiKey} />
         </div>
 
-        {/* Countdown */}
         {revealed && countdown !== null && (
           <div
-            className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs animate-fade-in"
+            className="flex items-start sm:items-center gap-2 px-3 py-2.5 rounded-lg text-xs animate-fade-in leading-relaxed"
             style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.14)', color: '#fcd34d' }}
           >
-            <AlertTriangle size={12} className="shrink-0" />
-            Key visible for <strong>{countdown}s</strong> — don't share or screenshot this value.
+            <AlertTriangle size={14} className="shrink-0 mt-[2px] sm:mt-0" />
+            <span>Key visible for <strong>{countdown}s</strong> — don't share or screenshot this value.</span>
           </div>
         )}
 
         <hr className="divider" />
 
-        {/* Regenerate row */}
+        {/* Rotate row */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Regenerate key</p>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Rotate key</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Immediately invalidates current key</p>
           </div>
           <button onClick={() => setShowConf(true)} className="btn-secondary text-xs gap-1.5">
-            <RefreshCw size={12} /> Regenerate
+            <RefreshCw size={12} /> Rotate Key
           </button>
         </div>
       </div>
@@ -267,6 +275,9 @@ export default function ApiKeys() {
             </div>
           ))}
         </div>
+        <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
+          Need higher limits? Contact us at <a href={`mailto:${import.meta.env.VITE_SUPPORT_EMAIL || 'support@yourdomain.com'}`} className="text-white hover:underline transition-all">{import.meta.env.VITE_SUPPORT_EMAIL || 'support@yourdomain.com'}</a> to request a limit increase.
+        </p>
       </div>
 
       {/* Code snippets */}
@@ -277,16 +288,16 @@ export default function ApiKeys() {
         </div>
 
         {/* Language tabs */}
-        <div className="flex items-center gap-1 px-4 sm:px-6 pt-4">
+        <div className="flex items-center gap-2 px-4 sm:px-6 pt-4 overflow-x-auto overflow-y-hidden whitespace-nowrap pb-2 scrollbar-hide">
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = tab === id;
             return (
               <button
                 key={id}
                 onClick={() => setTab(id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 shrink-0"
                 style={active
-                  ? { background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)' }
+                  ? { background: '#111111', color: '#ffffff', border: '1px solid rgba(255,255,255,0.1)' }
                   : { color: 'var(--text-muted)' }
                 }
                 onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-secondary)'; }}
@@ -303,21 +314,24 @@ export default function ApiKeys() {
         </div>
 
         {/* Tip */}
-        <div className="px-4 sm:px-6 pb-5">
+        <div className="px-4 sm:px-6 pb-5 space-y-3">
           <div
             className="flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs"
-            style={{ background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.1)', color: '#a5b4fc' }}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}
           >
             <Zap size={11} className="shrink-0 mt-0.5" />
             <p>
-              Replace <code className="font-mono text-[11px]">&lt;your-device-id&gt;</code> with a Device ID from the Devices page.
+              Replace <code className="font-mono text-[11px] text-white">&lt;your-device-id&gt;</code> with a Device ID from the Devices page.
             </p>
           </div>
           <div
             className="flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs"
-            style={{ background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.1)', color: '#a5b4fc' }}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}
           >
-            Need help? Check out our <Link to="/docs" className="text-blue-500 hover:text-blue-600 transition-colors">Documentation</Link>
+            <Shield size={11} className="shrink-0 mt-0.5" />
+            <p>
+              Need help? Check out our <Link to="/docs" className="text-white hover:underline transition-colors">Documentation</Link>
+            </p>
           </div>
         </div>
       </div>
@@ -328,9 +342,9 @@ export default function ApiKeys() {
         onClose={() => setShowConf(false)}
         onConfirm={regen}
         loading={loading}
-        title="Regenerate API Key?"
+        title="Rotate API Key?"
         description="Your current API key will be immediately invalidated. Any application or integration using the old key will stop working until updated with the new key."
-        confirmLabel="Yes, Regenerate"
+        confirmLabel="Yes, Rotate"
         cancelLabel="Cancel"
         variant="danger"
       />

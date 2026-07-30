@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { MessageSquare, Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 
 function FormInput({ id, label, type, value, onChange, placeholder, error, icon: Icon, right, autoComplete }) {
@@ -61,6 +62,7 @@ export default function Login() {
 
   const { login, isAuth } = useAuth();
   const navigate = useNavigate();
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   useEffect(() => {
     if (isAuth) {
@@ -88,14 +90,30 @@ export default function Login() {
     setLoading(true);
 
     try {
+      let recaptchaToken = null;
+      if (executeRecaptcha) {
+        recaptchaToken = await executeRecaptcha(tab);
+      }
+
       const endpoint = tab === 'login' ? '/auth/login' : '/auth/register';
       const { data } = await api.post(endpoint, {
         email: email.trim().toLowerCase(),
         password,
+        recaptchaToken
       });
-      login(data.data.token, { email: email.trim().toLowerCase(), apiKey: data.data.apiKey });
-      toast.success(tab === 'login' ? 'Welcome back!' : 'Account created! 🎉');
-      navigate('/dashboard', { replace: true });
+
+      if (data.data.requiresVerification || tab === 'register') {
+        toast.success(tab === 'login' ? 'Please verify your email.' : 'Account created successfully.');
+        navigate('/verify-email', { state: { email: email.trim().toLowerCase() } });
+      } else {
+        login(data.data.token, {
+          email: email.trim().toLowerCase(),
+          apiKey: data.data.apiKey,
+          isVerified: data.data.isVerified
+        });
+        toast.success('Authentication successful.');
+        navigate('/dashboard', { replace: true });
+      }
     } catch (err) {
       const msg = err.response?.data?.error || 'Something went wrong. Try again.';
       const status = err.response?.status;
@@ -119,8 +137,12 @@ export default function Login() {
       const { data } = await api.post('/auth/google', {
         idToken: credentialResponse.credential,
       });
-      login(data.data.token, { email: data.data.email, apiKey: data.data.apiKey });
-      toast.success('Signed in with Google!');
+      login(data.data.token, {
+        email: data.data.email,
+        apiKey: data.data.apiKey,
+        isVerified: data.data.isVerified
+      });
+      toast.success('Authentication successful.');
       navigate('/dashboard', { replace: true });
     } catch (err) {
       const msg = err.response?.data?.error || 'Google sign-in failed. Try again.';
@@ -142,26 +164,22 @@ export default function Login() {
         className="absolute pointer-events-none"
         style={{
           top: '-20%', left: '-15%', width: '50vw', height: '50vw',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 65%)',
         }}
       />
       <div
         className="absolute pointer-events-none"
         style={{
           bottom: '-20%', right: '-15%', width: '45vw', height: '45vw',
-          background: 'radial-gradient(circle, rgba(124,58,237,0.05) 0%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 65%)',
         }}
       />
 
       <div className="w-full max-w-[380px] animate-slide-up relative z-10">
 
-        {/* Logo & heading */}
         <div className="text-center mb-7">
-          <div
-            className="inline-flex w-12 h-12 rounded-2xl items-center justify-center mb-4"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #7c3aed)', boxShadow: '0 0 32px rgba(99,102,241,0.38)' }}
-          >
-            <MessageSquare size={22} className="text-white" strokeWidth={2.5} />
+          <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-4 overflow-hidden bg-transparent">
+            <img src="/logo.png" alt="SMSGW Logo" className="w-full h-full object-cover scale-[1.3]" />
           </div>
           <h1 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
             {tab === 'login' ? 'Sign in to SMS Gateway' : 'Create your account'}
@@ -232,7 +250,7 @@ export default function Login() {
                     to="/forgot-password"
                     className="text-xs transition-colors hover:underline"
                     style={{ color: 'var(--text-muted)' }}
-                    onMouseOver={(e) => e.target.style.color = '#818cf8'}
+                    onMouseOver={(e) => e.target.style.color = '#ffffff'}
                     onMouseOut={(e) => e.target.style.color = 'var(--text-muted)'}
                   >
                     Forgot password?
@@ -328,6 +346,13 @@ export default function Login() {
             </>
           )}
         </p>
+
+        {/* reCAPTCHA TOS */}
+        <div className="text-center mt-6 text-[10px]" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+          This site is protected by reCAPTCHA and the Google <br />
+          <a href="https://policies.google.com/privacy" className="underline hover:text-white" target="_blank" rel="noreferrer">Privacy Policy</a> and{' '}
+          <a href="https://policies.google.com/terms" className="underline hover:text-white" target="_blank" rel="noreferrer">Terms of Service</a> apply.
+        </div>
       </div>
     </div>
   );

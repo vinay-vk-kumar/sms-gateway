@@ -7,37 +7,30 @@ export default function NetworkStatus() {
   useEffect(() => {
     const handleOffline = () => {
       toast.error(
-        (t) => (
-          <div className="flex items-start gap-2">
-            <span style={{ fontSize: 15 }}>📡</span>
-            <div>
-              <p className="font-semibold text-xs">No internet connection</p>
-              <p className="text-xs mt-0.5" style={{ color: 'rgba(252,165,165,0.8)' }}>
-                API calls will fail until you're back online.
-              </p>
-            </div>
-          </div>
-        ),
+        "Network connection lost. Retrying...",
         {
           id: OFFLINE_TOAST_ID,
-          duration: Infinity,   // stays until dismissed
+          duration: Infinity,
           style: {
             background: '#1f1f1f',
             color: '#ededed',
-            border: '1px solid rgba(239,68,68,0.35)',
-            borderLeft: '3px solid #ef4444',
-            borderRadius: '10px',
-          },
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+          }
         }
       );
     };
 
     const handleOnline = () => {
       toast.dismiss(OFFLINE_TOAST_ID);
-      toast.success('Back online — connection restored', {
-        id: 'network-online',
-        duration: 4000,
-        icon: '✅',
+      toast.success('Network connection restored.', {
+        duration: 3000,
+        style: {
+          borderRadius: '8px',
+          background: '#050505',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.1)'
+        }
       });
     };
 

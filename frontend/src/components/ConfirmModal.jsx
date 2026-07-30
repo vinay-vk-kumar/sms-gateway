@@ -9,7 +9,7 @@ export default function ConfirmModal({
   description,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
-  variant = 'danger',   // 'danger' | 'warning' | 'default'
+  variant = 'danger',
   loading = false,
 }) {
   const confirmRef = useRef(null);

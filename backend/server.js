@@ -1,7 +1,5 @@
-
-
 require('dotenv').config();
-require('express-async-errors'); // Catches async errors automatically in Express 4
+require('express-async-errors');
 
 const express = require('express');
 const helmet = require('helmet');
@@ -12,8 +10,8 @@ const cookieParser = require('cookie-parser');
 
 const connectDB = require('./config/db');
 const { getRedisClient, getRedisConfig } = require('./config/redis');
+const requireVerified = require('./middleware/requireVerified.middleware');
 const { initializeFirebase } = require('./config/firebase.config');
-const { getSmsQueue, getDlQueue } = require('./queue/sms.queue');
 const { initSmsWorker } = require('./queue/sms.worker');
 
 const app = express();
@@ -28,18 +26,18 @@ initSmsWorker();        // Start processing SMS delivery jobs
 
 app.use(helmet());
 
-const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,https://smsgateway.codewithvin.app')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+    if (!origin) return callback(null, true); // Allows mobile apps and API clients
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(new Error(`CORS: origin '${origin}' not allowed`));
+    return callback(new Error(`CORS policy violation: Origin '${origin}' is not allowed`));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
@@ -59,6 +57,8 @@ if (process.env.NODE_ENV !== 'production') {
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
+
+const authMiddleware = require('./middleware/auth.middleware');
 
 app.use('/auth', require('./routes/auth.routes'));
 app.use('/api/devices', require('./routes/device.routes'));
@@ -104,7 +104,7 @@ app.use((err, req, res, next) => {
 
 const server = app.listen(PORT, () => {
   console.log(`\n[Server] ✓ Running on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
-  console.log(`[Server] Health: http://localhost:${PORT}/health\n`);
+  console.log(`[Server] Health: http://${process.env.HOST || '127.0.0.1'}:${PORT}/health\n`);
 });
 
 const shutdown = (signal) => {

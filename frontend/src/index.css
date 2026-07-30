@@ -4,39 +4,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─────────────────────────────────────────────────────────────
-   CSS Custom Properties — Vercel Dark Palette
-   ───────────────────────────────────────────────────────────── */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
+
 :root {
-  --bg-base: #0a0a0a;
-  --bg-surface: #111111;
-  --bg-card: #161616;
-  --bg-card-hover: #1a1a1a;
-  --bg-elevated: #222222;
-  --border: rgba(255, 255, 255, 0.08);
+  --bg-base: #000000;
+  --bg-surface: #050505;
+  --bg-card: #050505;
+  --bg-card-hover: #0a0a0a;
+  --bg-elevated: #050505;
+  --border: rgba(255, 255, 255, 0.1);
   --border-strong: rgba(255, 255, 255, 0.15);
-  --border-focus: rgba(99, 102, 241, 0.65);
-  --text-primary: #ededed;
-  --text-secondary: #999999;
-  --text-muted: #555555;
-  --brand: #6366f1;
-  --brand-light: #818cf8;
-  --brand-glow: rgba(99, 102, 241, 0.18);
+  --border-focus: rgba(255, 255, 255, 0.4);
+  --text-primary: #ffffff;
+  --text-secondary: #d4d4d8;
+  --text-muted: #a1a1aa;
+  --brand: #ffffff;
+  --brand-light: #e4e4e7;
+  --brand-glow: rgba(255, 255, 255, 0.1);
   --success: #22c55e;
   --success-dim: rgba(34, 197, 94, 0.12);
   --warning: #f59e0b;
   --warning-dim: rgba(245, 158, 11, 0.1);
   --danger: #ef4444;
   --danger-dim: rgba(239, 68, 68, 0.1);
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
-  --radius-2xl: 12px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.7);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 10px 40px rgba(255, 255, 255, 0.03);
+  --shadow-xl: 0 20px 60px rgba(255, 255, 255, 0.03);
 }
 
 *,
@@ -61,7 +62,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
-  overflow-x: hidden;
 }
 
 ::-webkit-scrollbar {
@@ -84,12 +84,19 @@ body {
 
 
 ::selection {
-  background: rgba(99, 102, 241, 0.28);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bg-white::selection,
+.bg-white *::selection,
+.text-black::selection,
+.text-black *::selection {
+  background: rgba(0, 0, 0, 0.2) !important;
+  color: #000 !important;
 }
 
 :focus-visible {
-  outline: 2px solid rgba(99, 102, 241, 0.55);
+  outline: 2px solid rgba(255, 255, 255, 0.3);
   outline-offset: 2px;
   border-radius: var(--radius-md);
 }
@@ -99,23 +106,27 @@ body {
   .card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-2xl);
-    transition: border-color 0.15s ease;
+    border-radius: var(--radius-lg);
+    transition: all 0.2s ease;
+    box-shadow: none;
   }
 
   .card:hover {
+    background: var(--bg-card-hover);
     border-color: var(--border-strong);
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm text-white select-none transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none;
-    background: linear-gradient(135deg, #6366f1, #7c3aed);
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm text-black select-none transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none;
+    background: #ffffff;
+    border: 1px solid #ffffff;
     box-shadow: var(--shadow-sm);
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, #4f46e5, #6d28d9);
-    box-shadow: 0 0 20px var(--brand-glow), var(--shadow-md);
+    background: #e4e4e7;
+    border-color: #e4e4e7;
+    box-shadow: 0 0 15px var(--brand-glow), var(--shadow-md);
     transform: translateY(-1px);
   }
 
@@ -124,6 +135,7 @@ body {
     color: var(--text-primary);
     background: var(--bg-elevated);
     border: 1px solid var(--border-strong);
+    box-shadow: none;
   }
 
   .btn-secondary:hover:not(:disabled) {

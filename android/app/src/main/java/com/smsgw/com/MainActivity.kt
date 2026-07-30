@@ -18,7 +18,9 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.messaging.FirebaseMessaging
 import com.smsgw.com.data.ApiClient
 import com.smsgw.com.data.SecureStorage
-import com.smsgw.com.worker.SmsWorker
+import android.provider.Settings
+import android.net.Uri
+import android.os.PowerManager
 import com.smsgw.com.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -27,7 +29,14 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanIntentResult
+import com.journeyapps.barcodescanner.ScanOptions
+import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 class MainActivity : AppCompatActivity() {
 
     companion object {
@@ -36,77 +45,103 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var loadingOverlay: android.view.View
+    private lateinit var loadingContent: android.view.View
 
     private var fullFcmToken: String = ""
+
+    private val deviceDeletedReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.smsgw.com.DEVICE_DELETED") {
+                // Show loader overlay during device removal handling
+                runOnUiThread { showLoadingOverlay(true) }
+                lifecycleScope.launch {
+                    delay(1500)
+                    runOnUiThread { 
+                        showLoadingOverlay(false)
+                        showError("Device was removed from the dashboard.")
+                        updateStatusDisplay()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showLoadingOverlay(show: Boolean) {
+        if (show) {
+            loadingOverlay.visibility = View.VISIBLE
+            loadingContent.visibility = View.VISIBLE
+        } else {
+            loadingOverlay.visibility = View.GONE
+            loadingContent.visibility = View.GONE
+        }
+    }
+
+    private val qrScannerLauncher = registerForActivityResult(ScanContract()) { result: ScanIntentResult ->
+        if (result.contents != null) {
+            handleQrCode(result.contents)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Initialize loader overlay views
+        loadingOverlay = findViewById(R.id.loadingOverlay)
+        loadingContent = findViewById(R.id.loadingContent)
 
         requestRequiredPermissions()
         loadFcmToken()
         updateStatusDisplay()
 
-        binding.btnSettings.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(this).registerReceiver(
+            deviceDeletedReceiver,
+            android.content.IntentFilter("com.smsgw.com.DEVICE_DELETED")
+        )
 
-        binding.btnCopyToken.setOnClickListener {
-            if (fullFcmToken.isBlank()) {
-                showInfo("FCM token not ready yet — please wait a moment")
-                return@setOnClickListener
-            }
-
-            // Copy the FULL token (not the truncated display text)
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("FCM Token", fullFcmToken))
-
-            // Button feedback: change text → wait → restore
-            binding.btnCopyToken.text = "Copied ✓"
-            binding.btnCopyToken.isEnabled = false
-            lifecycleScope.launch {
-                delay(1800)
-                binding.btnCopyToken.text = "Copy Token"
-                binding.btnCopyToken.isEnabled = true
-            }
-
-            // Android 13+ shows its own copy confirmation — avoid double notification
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                showSuccess("FCM Token copied to clipboard")
-            } else {
-                // Still show our styled snackbar on Android 13+ for consistency
-                showSuccess("FCM Token copied")
-            }
-        }
-
-        binding.btnPollNow.setOnClickListener {
-            if (!SecureStorage.isConfigured(this)) {
-                showError("Configure Device ID and Secret in Settings first")
-                return@setOnClickListener
-            }
-            runPollCycle()
-        }
-
-        val isPollingEnabled = SecureStorage.isContinuousPollingEnabled(this)
-        binding.switchPolling.isChecked = isPollingEnabled
-        
-        if (isPollingEnabled) {
-            com.smsgw.com.worker.SmsForegroundService.start(this)
+        binding.btnLogs.setOnClickListener {
+            startActivity(Intent(this, LogsActivity::class.java))
         }
         
-        binding.switchPolling.setOnCheckedChangeListener { _, isChecked ->
-            SecureStorage.setContinuousPollingEnabled(this, isChecked)
-            if (isChecked) {
-                com.smsgw.com.worker.SmsForegroundService.start(this)
-                showSuccess("Continuous polling started")
+        binding.btnScanQr.setOnClickListener {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                startQrScanner()
             } else {
-                com.smsgw.com.worker.SmsForegroundService.stop(this)
-                showInfo("Continuous polling stopped")
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 101)
             }
         }
 
-        SmsWorker.schedulePeriodicPolling(this)
+        binding.btnGrantPermissions.setOnClickListener {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            val uri = Uri.fromParts("package", packageName, null)
+            intent.data = uri
+            startActivity(intent)
+        }
+
+
+        requestBatteryOptimizationIgnore()
+    }
+
+    private fun requestBatteryOptimizationIgnore() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                val intent = Intent().apply {
+                    action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                    data = Uri.parse("package:$packageName")
+                }
+                try {
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Battery optimization intent failed: ${e.message}")
+                }
+            } else {
+                // If they already ignored battery optimization, ask them to check AutoStart
+                // (Only really necessary for Xiaomi/Oppo/Vivo)
+                com.smsgw.com.utils.AutoStartHelper.requestAutoStartPermissions(this)
+            }
+        }
     }
 
     override fun onResume() {
@@ -114,100 +149,48 @@ class MainActivity : AppCompatActivity() {
         updateStatusDisplay()
     }
 
-    private fun runPollCycle() {
-        binding.btnPollNow.isEnabled = false
-        binding.btnPollNow.text = "Polling…"
-
-        lifecycleScope.launch {
-            try {
-                val messages = withContext(Dispatchers.IO) {
-                    ApiClient.fetchPendingMessages(this@MainActivity)
-                }
-
-                if (messages.isEmpty()) {
-                    showInfo("No pending messages for this device")
-                    return@launch
-                }
-
-                showInfo("Found ${messages.size} message(s) — sending…")
-                binding.btnPollNow.text = "Sending ${messages.size} SMS…"
-
-                val sentIds   = mutableListOf<String>()
-                val failedIds = mutableListOf<Pair<String, String>>()
-
-                for (msg in messages) {
-                    val (ok, reason) = withContext(Dispatchers.IO) {
-                        SmsWorker.sendSmsPublic(applicationContext, msg.to, msg.message)
-                    }
-                    if (ok) {
-                        sentIds.add(msg.id)
-                        try { withContext(Dispatchers.IO) { ApiClient.markSent(this@MainActivity, listOf(msg.id)) } } catch (e: Exception) {}
-                    } else {
-                        failedIds.add(Pair(msg.id, reason))
-                        try { withContext(Dispatchers.IO) { ApiClient.markFailed(this@MainActivity, msg.id, reason) } } catch (e: Exception) {}
-                    }
-                }
-
-                val now = SimpleDateFormat("HH:mm, d MMM", Locale.getDefault()).format(Date())
-                SecureStorage.saveLastPollTime(this@MainActivity, now)
-                updateStatusDisplay()
-
-                val summary = buildString {
-                    if (sentIds.isNotEmpty())   append("${sentIds.size} sent")
-                    if (failedIds.isNotEmpty()) {
-                        if (isNotEmpty()) append(", ")
-                        append("${failedIds.size} failed")
-                    }
-                }
-
-                if (failedIds.isEmpty()) showSuccess("Done — $summary")
-                else                     showError("Done — $summary")
-
-            } catch (e: ApiClient.AuthException) {
-                showError(e.message ?: "Authentication error — check Settings")
-                Log.e(TAG, "Auth error: ${e.message}")
-            } catch (e: java.io.IOException) {
-                val url = SecureStorage.getServerUrl(this@MainActivity)
-                showError("Cannot reach server — check connection")
-                Log.e(TAG, "Network error: ${e.message} ($url)")
-            } catch (e: Exception) {
-                showError("Unexpected error — please try again")
-                Log.e(TAG, "Poll error", e)
-            } finally {
-                binding.btnPollNow.isEnabled = true
-                binding.btnPollNow.text      = "Poll Now"
-            }
-        }
+    override fun onDestroy() {
+        super.onDestroy()
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(this).unregisterReceiver(deviceDeletedReceiver)
     }
 
+
+
     private fun updateStatusDisplay() {
+        // Hide loader if visible
+        showLoadingOverlay(false)
         val configured = SecureStorage.isConfigured(this)
         val deviceId   = SecureStorage.getDeviceId(this)
         val serverUrl  = SecureStorage.getServerUrl(this)
-        val lastPoll   = SecureStorage.getLastPollTime(this)
+        val hasSmsPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
 
-        if (configured) {
+        if (!hasSmsPermission) {
+            binding.ivStatusDot.setImageResource(R.drawable.status_dot_amber)
+            binding.tvStatus.text = "Permission Missing"
+            binding.tvStatus.setTextColor(0xFFf87171.toInt())
+            binding.tvDeviceId.text = "SMS Permission is required to send messages"
+            binding.tvServer.text   = ""
+            binding.tvLastSync.visibility = View.GONE
+            binding.cardSetup.visibility  = View.GONE
+            binding.cardPermissions.visibility = View.VISIBLE
+        } else if (configured) {
             binding.ivStatusDot.setImageResource(R.drawable.status_dot_green)
             binding.tvStatus.text = "Device Configured"
             binding.tvStatus.setTextColor(0xFF4ade80.toInt())
             binding.tvDeviceId.text = "ID: ${deviceId.take(8)}…${deviceId.takeLast(4)}"
             binding.tvServer.text   = serverUrl
             binding.cardSetup.visibility = View.GONE
-
-            if (lastPoll.isNotBlank()) {
-                binding.tvLastSync.visibility = View.VISIBLE
-                binding.tvLastSync.text       = "Last synced: $lastPoll"
-            } else {
-                binding.tvLastSync.visibility = View.GONE
-            }
+            binding.cardPermissions.visibility = View.GONE
+            binding.tvLastSync.visibility = View.GONE
         } else {
             binding.ivStatusDot.setImageResource(R.drawable.status_dot_amber)
             binding.tvStatus.text = "Not Configured"
             binding.tvStatus.setTextColor(0xFFfbbf24.toInt())
-            binding.tvDeviceId.text = "Open Settings to connect this device"
+            binding.tvDeviceId.text = "Scan QR code to connect this device"
             binding.tvServer.text   = ""
             binding.tvLastSync.visibility = View.GONE
             binding.cardSetup.visibility  = View.VISIBLE
+            binding.cardPermissions.visibility = View.GONE
         }
     }
 
@@ -215,16 +198,11 @@ class MainActivity : AppCompatActivity() {
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
                 Log.e(TAG, "FCM token failed: ${task.exception?.message}")
-                binding.tvFcmToken.text = "Failed to load token\n(Check google-services.json)"
                 return@addOnCompleteListener
             }
 
             fullFcmToken = task.result          // Store FULL token for copying
             SecureStorage.saveFcmToken(this, fullFcmToken)
-
-            // Display truncated preview — full token copied via button
-            binding.tvFcmToken.text =
-                "${fullFcmToken.take(40)}…\n(tap Copy Token for the full value)"
         }
     }
 
@@ -233,6 +211,10 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED) {
             needed.add(Manifest.permission.SEND_SMS)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)
+            != PackageManager.PERMISSION_GRANTED) {
+            needed.add(Manifest.permission.READ_PHONE_STATE)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -258,6 +240,94 @@ class MainActivity : AppCompatActivity() {
             } else {
                 showError("SMS permission required — grant it in Settings → Apps → SMS Gateway → Permissions")
             }
+        } else if (requestCode == 101) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startQrScanner()
+            } else {
+                showError("Camera permission is required to scan QR code")
+            }
+        }
+    }
+
+    private fun startQrScanner() {
+        val options = ScanOptions()
+        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+        options.setPrompt("") // Custom layout handles prompt
+        options.setBeepEnabled(false)
+        options.setBarcodeImageEnabled(false)
+        options.setCaptureActivity(CustomScannerActivity::class.java)
+        qrScannerLauncher.launch(options)
+    }
+
+    private fun handleQrCode(jsonString: String) {
+        lifecycleScope.launch {
+            try {
+                val json = JSONObject(jsonString)
+                if (json.optString("action") != "smsgw_pair") {
+                    showError("Invalid QR Code")
+                    return@launch
+                }
+                
+                val token = json.getString("token")
+                val url = json.getString("url")
+                
+                showInfo("Pairing device...")
+                
+                var errorMessage = "Failed to pair device"
+                val success = withContext(Dispatchers.IO) {
+                    try {
+                        val client = OkHttpClient()
+                        val reqJson = JSONObject().apply {
+                            put("pairingToken", token)
+                            put("fcmToken", fullFcmToken.ifEmpty { "dummy_fcm_token_for_dev_mode_or_missing" })
+                            put("deviceName", Build.MODEL ?: "Android Device")
+                        }
+                        
+                        val body = reqJson.toString().toRequestBody("application/json".toMediaTypeOrNull())
+                        val request = Request.Builder()
+                            .url("$url/api/devices/pair")
+                            .post(body)
+                            .build()
+                            
+                        client.newCall(request).execute().use { response ->
+                            val resString = response.body?.string() ?: ""
+                            if (!response.isSuccessful) {
+                                try {
+                                    val errJson = JSONObject(resString)
+                                    errorMessage = errJson.optString("error", "HTTP ${response.code}: $resString")
+                                } catch(e:Exception) {
+                                    errorMessage = "HTTP ${response.code}: $resString"
+                                }
+                                return@withContext false
+                            }
+                            
+                            val resJson = JSONObject(resString)
+                            if (resJson.optBoolean("success")) {
+                                val data = resJson.getJSONObject("data")
+                                SecureStorage.saveCredentials(this@MainActivity, data.getString("deviceId"), data.getString("deviceSecret"))
+                                SecureStorage.saveServerUrl(this@MainActivity, url)
+                                true
+                            } else {
+                                errorMessage = resJson.optString("error", "Unknown backend error")
+                                false
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Pairing error: ${e.message}")
+                        errorMessage = e.message ?: "Network error"
+                        false
+                    }
+                }
+                
+                if (success) {
+                    showSuccess("Device paired successfully!")
+                    updateStatusDisplay()
+                } else {
+                    showError(errorMessage)
+                }
+            } catch (e: Exception) {
+                showError("Invalid QR Code Format")
+            }
         }
     }
 
@@ -269,11 +339,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG)
-            .setBackgroundTint(0xFF2a0f0f.toInt())
-            .setTextColor(0xFFf87171.toInt())
-            .setAction("OK") {}
-            .setActionTextColor(0xFFf87171.toInt())
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Error")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .setBackground(android.graphics.drawable.ColorDrawable(0xFF11111C.toInt()))
             .show()
     }
 

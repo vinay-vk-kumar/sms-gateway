@@ -16,6 +16,10 @@
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
+    <!-- QR Code Scanning -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <!-- Background & network -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -51,6 +55,21 @@
             android:theme="@style/Theme.SmsGateway"
             android:label="Settings" />
 
+        <!-- Custom QR Scanner -->
+        <activity
+            android:name=".CustomScannerActivity"
+            android:screenOrientation="portrait"
+            android:stateNotNeeded="true"
+            android:theme="@style/Theme.SmsGateway"
+            android:exported="false" />
+
+        <!-- Logs Activity -->
+        <activity
+            android:name=".LogsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmsGateway"
+            android:label="Logs" />
+
         <!--
             FCM Service
             ===========
@@ -65,16 +84,6 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-
-        <!--
-            Continuous Polling Service (Zero-Delay)
-            ==========================
-            Keeps the app alive for guaranteed instant delivery if FCM fails.
-        -->
-        <service
-            android:name=".worker.SmsForegroundService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false" />
 
         <!--
             NOTE: WorkManager's BroadcastReceiver (for boot + force-stop recovery)

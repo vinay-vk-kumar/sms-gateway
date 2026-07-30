@@ -13,7 +13,7 @@ const parseRedisUrl = (url) => {
       port: parseInt(parsed.port) || (isTls ? 6380 : 6379),
       password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
       username: parsed.username && parsed.username !== 'default' ? parsed.username : undefined,
-      maxRetriesPerRequest: null,  // Required by BullMQ
+      maxRetriesPerRequest: null,
     };
 
     if (isTls) {
@@ -31,10 +31,10 @@ const getRedisConfig = () => {
 
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
-    console.warn('[Redis] REDIS_URL not set — using localhost fallback');
+    console.warn('[Redis] REDIS_URL not set — using local fallback');
     parsedConfig = {
-      host: 'localhost',
-      port: 6379,
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: parseInt(process.env.REDIS_PORT) || 6379,
       maxRetriesPerRequest: null,
     };
     return parsedConfig;
@@ -59,7 +59,7 @@ const getRedisClient = () => {
 
     client = new Redis({
       ...config,
-      maxRetriesPerRequest: 3,  // Override for ioredis client (different from BullMQ)
+      maxRetriesPerRequest: 3,
       lazyConnect: false,
       enableOfflineQueue: false,
     });

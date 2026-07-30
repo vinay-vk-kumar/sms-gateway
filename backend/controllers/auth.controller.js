@@ -5,7 +5,7 @@ const Joi = require('joi');
 const { OAuth2Client } = require('google-auth-library');
 
 const User = require('../models/User');
-const { sendOtpEmail } = require('../utils/email');
+const { sendPasswordResetEmail, sendVerificationEmail } = require('../utils/email');
 const { success, error } = require('../utils/apiResponse');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -38,8 +38,10 @@ const sendTokenResponse = (res, user, statusCode = 200) => {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
   res.cookie('jwt', token, cookieOptions);
-  return success(res, { token, apiKey: user.apiKey, email: user.email }, statusCode);
+  return success(res, { token, apiKey: user.apiKey, email: user.email, isVerified: user.isVerified }, statusCode);
 };
+
+
 
 const register = async (req, res) => {
   const { error: ve } = registerSchema.validate(req.body, { abortEarly: true });
@@ -48,16 +50,51 @@ const register = async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = email.toLowerCase().trim();
 
-  const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) return error(res, 'This email is already registered. Please log in.', 409);
+  let user = await User.findOne({ email: normalizedEmail });
 
-  const passwordHash = await bcrypt.hash(password, 12);
-  const apiKey = "sms-gateway_" + crypto.randomBytes(32).toString('hex');
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+  const today = todayStr();
 
-  const user = await User.create({ email: normalizedEmail, passwordHash, apiKey });
+  if (user) {
+    if (user.isVerified) {
+      return error(res, 'This email is already registered. Please log in.', 409);
+    }
 
-  console.log(`[Auth] Registered: ${normalizedEmail}`);
-  return sendTokenResponse(res, user, 201);
+    const countToday = user.emailVerificationDate === today ? (user.emailVerificationCount || 0) : 0;
+    const limit = user.emailDailyLimit || 5;
+    if (countToday >= limit) {
+      return error(res, `You've reached the limit (${limit} per day). Please try again tomorrow.`, 429);
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    user.passwordHash = passwordHash;
+    user.emailVerificationToken = token;
+    user.emailVerificationExpiry = expiry;
+    user.emailVerificationCount = countToday + 1;
+    user.emailVerificationDate = today;
+    await user.save();
+  } else {
+    const passwordHash = await bcrypt.hash(password, 12);
+    const apiKey = "sms-gateway_" + crypto.randomBytes(32).toString('hex');
+
+    user = await User.create({
+      email: normalizedEmail,
+      passwordHash,
+      apiKey,
+      isVerified: false,
+      emailVerificationToken: token,
+      emailVerificationExpiry: expiry,
+      emailVerificationCount: 1,
+      emailVerificationDate: today,
+    });
+  }
+
+  // Send the email asynchronously
+  sendVerificationEmail(normalizedEmail, token).catch(e => console.error('[Email Failed]', e));
+
+  console.log(`[Auth] Registered/Re-registered: ${normalizedEmail}`);
+  return success(res, { message: 'Verification email sent', email: normalizedEmail }, 200);
 };
 
 const login = async (req, res) => {
@@ -75,6 +112,27 @@ const login = async (req, res) => {
 
   if (user.isSuspended) return error(res, 'Your account has been suspended. Contact support.', 403);
 
+  if (!user.isVerified) {
+    const today = todayStr();
+    const countToday = user.emailVerificationDate === today ? (user.emailVerificationCount || 0) : 0;
+    const limit = user.emailDailyLimit || 5;
+    if (countToday >= limit) {
+      return error(res, `You've reached the verification limit (${limit} per day). Please try again tomorrow.`, 429);
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    user.emailVerificationToken = token;
+    user.emailVerificationExpiry = expiry;
+    user.emailVerificationCount = countToday + 1;
+    user.emailVerificationDate = today;
+    await user.save();
+
+    sendVerificationEmail(normalizedEmail, token).catch(e => console.error('[Email Failed]', e));
+    console.log(`[Auth] Login attempt for unverified: ${normalizedEmail}`);
+    return success(res, { requiresVerification: true, email: normalizedEmail });
+  }
+
   console.log(`[Auth] Login: ${normalizedEmail}`);
   return sendTokenResponse(res, user);
 };
@@ -86,6 +144,7 @@ const me = async (req, res) => {
     createdAt: req.user.createdAt,
     isSuspended: req.user.isSuspended,
     isGoogleUser: !!req.user.googleId,
+    isVerified: req.user.isVerified,
   });
 };
 
@@ -127,11 +186,17 @@ const googleAuth = async (req, res) => {
   if (user) {
     if (!user.googleId) {
       user.googleId = googleId;
+      user.isVerified = true;
       await user.save();
     }
   } else {
     const apiKey = "sms-gateway_" + crypto.randomBytes(32).toString('hex');
-    user = await User.create({ email: normalizedEmail, googleId, apiKey });
+    user = await User.create({
+      email: normalizedEmail,
+      googleId,
+      apiKey,
+      isVerified: true
+    });
     console.log(`[Auth] Google sign-up: ${normalizedEmail}`);
   }
 
@@ -148,9 +213,6 @@ const logout = async (req, res) => {
   });
   return success(res, { message: 'Logged out successfully' });
 };
-
-const OTP_EXPIRY_MINUTES = 10;
-const OTP_DAILY_LIMIT = 3;
 
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -171,115 +233,181 @@ const forgotPassword = async (req, res) => {
   const sameDay = user.passwordResetDate === today;
   const countToday = sameDay ? (user.passwordResetCount || 0) : 0;
 
-  if (countToday >= OTP_DAILY_LIMIT) {
+  const limit = user.emailDailyLimit || 5;
+  if (countToday >= limit) {
     return error(
       res,
-      `You've reached the OTP limit (${OTP_DAILY_LIMIT} per day). Please try again tomorrow.`,
+      `You've reached the limit (${limit} per day). Please try again tomorrow.`,
       429
     );
   }
 
-  const otp = String(Math.floor(100000 + Math.random() * 900000));
-  const otpHash = await bcrypt.hash(otp, 10);
-  const expiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60_000);
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiry = new Date(Date.now() + 10 * 60_000); // 10 mins
 
   await User.findByIdAndUpdate(user._id, {
-    passwordResetOtp: otpHash,
+    passwordResetToken: token,
     passwordResetExpiry: expiry,
     passwordResetCount: countToday + 1,
     passwordResetDate: today,
   });
 
   try {
-    await sendOtpEmail(normalizedEmail, otp);
-    console.log(`[Auth] OTP sent to ${normalizedEmail} (attempt ${countToday + 1}/${OTP_DAILY_LIMIT})`);
+    await sendPasswordResetEmail(normalizedEmail, token);
+    console.log(`[Auth] Password reset link sent to ${normalizedEmail}`);
   } catch (e) {
-    console.error(`[Auth] Failed to send OTP email to ${normalizedEmail}:`, e.message);
+    console.error(`[Auth] Failed to send email to ${normalizedEmail}:`, e.message);
     return error(res, 'Failed to send email. Please try again later.', 500);
   }
 
-  return success(res, {
-    message: 'OTP sent to your email.',
-    attemptsLeft: OTP_DAILY_LIMIT - (countToday + 1),
-  });
-};
-
-const verifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
-  if (!email || !otp) return error(res, 'Email and OTP are required', 400);
-  if (!/^\d{6}$/.test(otp)) return error(res, 'OTP must be 6 digits', 400);
-
-  const normalizedEmail = email.toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail });
-
-  if (!user) return error(res, 'No account found with this email address.', 404);
-
-  if (!user.passwordResetOtp || !user.passwordResetExpiry) {
-    return error(res, 'No active OTP found. Please request a new one.', 400);
-  }
-
-  if (new Date() > user.passwordResetExpiry) {
-    // Clear expired OTP
-    await User.findByIdAndUpdate(user._id, {
-      passwordResetOtp: null,
-      passwordResetExpiry: null,
-    });
-    return error(res, 'OTP has expired (valid for 10 minutes). Request a new one.', 400);
-  }
-
-  const isMatch = await bcrypt.compare(otp, user.passwordResetOtp);
-  if (!isMatch) {
-    return error(res, 'Incorrect OTP. Check your email and try again.', 400);
-  }
-
-  await User.findByIdAndUpdate(user._id, {
-    passwordResetOtp: null,
-    passwordResetExpiry: null,
-  });
-
-  // Issue a short-lived reset token (15 min)
-  const resetToken = jwt.sign(
-    { userId: user._id.toString(), purpose: 'password-reset' },
-    process.env.JWT_SECRET,
-    { expiresIn: '15m' }
-  );
-
-  console.log(`[Auth] OTP verified for ${normalizedEmail}`);
-  return success(res, { resetToken });
+  return success(res, { message: 'Reset link sent to your email.' });
 };
 
 const resetPassword = async (req, res) => {
-  const { resetToken, password } = req.body;
-  if (!resetToken || !password) return error(res, 'Reset token and new password are required', 400);
+  const { token, password } = req.body;
+  if (!token || !password) return error(res, 'Token and new password are required', 400);
   if (password.length < 8) return error(res, 'Password must be at least 8 characters', 400);
 
-  let decoded;
-  try {
-    decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
-  } catch {
-    return error(res, 'Reset token is invalid or has expired. Please start over.', 401);
-  }
+  const user = await User.findOne({
+    passwordResetToken: token,
+    passwordResetExpiry: { $gt: new Date() }
+  });
 
-  if (decoded.purpose !== 'password-reset') {
-    return error(res, 'Invalid reset token', 401);
+  if (!user) {
+    return error(res, 'Invalid or expired reset link. Please request a new one.', 400);
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  await User.findByIdAndUpdate(decoded.userId, {
+  await User.findByIdAndUpdate(user._id, {
     passwordHash,
-    passwordResetOtp: null,
+    passwordResetToken: null,
     passwordResetExpiry: null,
   });
 
-  console.log(`[Auth] Password reset for user ${decoded.userId}`);
-  return success(res, { message: 'Password reset successfully. You can now sign in.' });
+  console.log(`[Auth] Password reset successful for ${user.email}`);
+  return success(res, { message: 'Password has been reset successfully.' });
+};
+
+const verifyEmail = async (req, res) => {
+  const { token } = req.body;
+  if (!token) return error(res, 'Token is required', 400);
+
+  const user = await User.findOne({
+    emailVerificationToken: token,
+    emailVerificationExpiry: { $gt: new Date() }
+  });
+
+  if (!user) {
+    return error(res, 'Invalid or expired verification link. Please request a new one.', 400);
+  }
+
+  if (user.isVerified) return error(res, 'Email already verified', 400);
+
+  user.isVerified = true;
+  user.emailVerificationToken = null;
+  user.emailVerificationExpiry = null;
+  await user.save();
+
+  console.log(`[Auth] Email verified for ${user.email}`);
+  return sendTokenResponse(res, user);
+};
+
+const resendVerification = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return error(res, 'Email is required', 400);
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) return error(res, 'No account found with this email.', 404);
+  if (user.isVerified) return error(res, 'Email already verified', 400);
+
+  const today = todayStr();
+  const countToday = user.emailVerificationDate === today ? (user.emailVerificationCount || 0) : 0;
+  const limit = user.emailDailyLimit || 5;
+  if (countToday >= limit) {
+    return error(res, `You've reached the limit (${limit} per day). Please try again tomorrow.`, 429);
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+  user.emailVerificationToken = token;
+  user.emailVerificationExpiry = expiry;
+  user.emailVerificationCount = countToday + 1;
+  user.emailVerificationDate = today;
+  await user.save();
+
+  // Send the email asynchronously
+  sendVerificationEmail(user.email, token).catch(e => console.error('[Email Failed]', e));
+
+  return success(res, { message: 'A new verification link has been sent to your email.' });
+};
+
+const changeEmail = async (req, res) => {
+  const { email, newEmail } = req.body;
+  if (!email || !newEmail) return error(res, 'Both current and new email are required', 400);
+  if (!/\S+@\S+\.\S+/.test(newEmail)) return error(res, 'Valid new email is required', 400);
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedNewEmail = newEmail.toLowerCase().trim();
+
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user) return error(res, 'No account found with this email.', 404);
+
+  if (user.isVerified) return error(res, 'Email already verified', 400);
+  if (user.email === normalizedNewEmail) return error(res, 'This is already your email address', 400);
+
+  // Check if new email is in use
+  const existing = await User.findOne({ email: normalizedNewEmail });
+  if (existing) return error(res, 'This email address is already in use by another account', 409);
+
+  const today = todayStr();
+  const countToday = user.emailVerificationDate === today ? (user.emailVerificationCount || 0) : 0;
+  const limit = user.emailDailyLimit || 5;
+  if (countToday >= limit) {
+    return error(res, `You've reached the limit (${limit} per day). Please try again tomorrow.`, 429);
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+  user.email = normalizedNewEmail;
+  user.emailVerificationToken = token;
+  user.emailVerificationExpiry = expiry;
+  user.emailVerificationCount = countToday + 1;
+  user.emailVerificationDate = today;
+  await user.save();
+
+  sendVerificationEmail(normalizedNewEmail, token).catch(e => console.error('[Email Failed]', e));
+
+  return success(res, { message: 'Email updated successfully. Verification link sent.', newEmail: normalizedNewEmail });
+};
+
+const checkVerification = async (req, res) => {
+  const { email } = req.query;
+  if (!email) return error(res, 'Email is required', 400);
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail }).select('isVerified');
+
+  if (!user) return error(res, 'No account found with this email.', 404);
+
+  return success(res, { isVerified: user.isVerified });
 };
 
 module.exports = {
-  register, login, me, regenerateApiKey,
+  register,
+  login,
+  me,
   googleAuth,
-  forgotPassword, verifyOtp,
-  resetPassword,
   logout,
+  regenerateApiKey,
+  forgotPassword,
+  resetPassword,
+  verifyEmail,
+  resendVerification,
+  changeEmail,
+  checkVerification,
 };

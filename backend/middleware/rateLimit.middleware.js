@@ -21,7 +21,7 @@ const rateLimitMiddleware = async (req, res, next) => {
 
     const phoneRaw = to.replace(/[+\s]/g, '');
 
-    const minuteLimit = req.user.minuteSmsLimit || 10;
+    const minuteLimit = req.user.minuteSmsLimit || 30;
     const minKey = `rate:user:${userId}:min`;
     const minCount = await incrementWithExpiry(redis, minKey, 60);
 
@@ -29,7 +29,7 @@ const rateLimitMiddleware = async (req, res, next) => {
       return error(res, `Rate limit exceeded: ${minuteLimit} SMS per minute allowed. Please slow down.`, 429);
     }
 
-    const dailyLimit = req.user.dailySmsLimit || 100;
+    const dailyLimit = req.user.dailySmsLimit || 1000;
     const dayKey = `rate:user:${userId}:day`;
     const dayCount = await incrementWithExpiry(redis, dayKey, 86400);
 

@@ -1,22 +1,3 @@
-/**
- * models/SmsQueue.js
- *
- *
- *   pending
- *     │
- *     ├─→ processing   (set atomically when device fetches)
- *     │       │          Prevents two simultaneous calls from
- *     │       │          fetching the same message twice
- *     │       │
- *     │       ├─→ sent      (device calls /mark-sent)
- *     │       │
- *     │       └─→ failed    (device calls /mark-failed, retries >= 3)
- *     │                      OR admin manually fails it
- *     │
- *     └─→ pending (stays here if FCM fails — WorkManager will pick it up)
- *
- */
-
 const mongoose = require('mongoose');
 
 const smsQueueSchema = new mongoose.Schema({
@@ -61,6 +42,12 @@ const smsQueueSchema = new mongoose.Schema({
 
   idempotencyKey: {
     type: String,
+    default: null,
+  },
+
+  webhookUrl: {
+    type: String,
+    trim: true,
     default: null,
   },
 

@@ -32,7 +32,7 @@ export default class ErrorBoundary extends Component {
             >
               Reload Page
             </button>
-            {process.env.NODE_ENV !== 'production' && this.state.error && (
+            {import.meta.env.MODE !== 'production' && this.state.error && (
               <div className="mt-6 p-4 rounded-lg bg-black/50 border border-slate-800 text-left overflow-auto text-xs font-mono text-red-400">
                 {this.state.error.toString()}
               </div>

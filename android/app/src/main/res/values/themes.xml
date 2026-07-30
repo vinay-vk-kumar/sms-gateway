@@ -43,7 +43,7 @@
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">14sp</item>
         <item name="android:letterSpacing">0.02</item>
-        <item name="cornerRadius">12dp</item>
+        <item name="cornerRadius">4dp</item>
     </style>
 
     <!-- Button: Secondary (surface) -->
@@ -51,7 +51,7 @@
         <item name="strokeColor">@color/border</item>
         <item name="android:textColor">@color/text_secondary</item>
         <item name="android:textSize">14sp</item>
-        <item name="cornerRadius">12dp</item>
+        <item name="cornerRadius">4dp</item>
         <item name="rippleColor">#1affffff</item>
     </style>
 
@@ -60,7 +60,7 @@
         <item name="strokeColor">#2af87171</item>
         <item name="android:textColor">@color/red</item>
         <item name="android:textSize">14sp</item>
-        <item name="cornerRadius">12dp</item>
+        <item name="cornerRadius">4dp</item>
         <item name="rippleColor">#1af87171</item>
     </style>
 </resources>

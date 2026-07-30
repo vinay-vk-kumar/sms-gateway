@@ -1,146 +1,13 @@
-import { useState, useRef, useEffect, Fragment } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import {
-  MessageSquare, Mail, Lock, Eye, EyeOff,
+  Mail, Lock, Eye, EyeOff,
   ArrowLeft, ArrowRight, AlertCircle,
-  CheckCircle, RefreshCw, Shield,
 } from 'lucide-react';
 
-/* Step indicator */
-function Steps({ current }) {
-  const steps = ['Email', 'OTP', 'New Password'];
-  return (
-    <div className="mb-6 w-full max-w-xs mx-auto">
-      {/* Row 1: circles + connector lines — all in same flex row so lines are perfectly centred */}
-      <div className="flex items-center justify-between px-4">
-        {steps.map((_, i) => {
-          const done = i < current;
-          const act = i === current;
-          return (
-            <Fragment key={i}>
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0"
-                style={{
-                  background: done ? '#4ade80' : act ? '#6366f1' : 'var(--bg-elevated)',
-                  border: `1.5px solid ${done ? '#4ade80' : act ? '#6366f1' : 'var(--border)'}`,
-                  color: done || act ? '#fff' : 'var(--text-muted)',
-                }}
-              >
-                {done ? <CheckCircle size={13} /> : i + 1}
-              </div>
-              {i < steps.length - 1 && (
-                <div className="flex-1 h-px mx-2 transition-all duration-300"
-                  style={{ background: done ? '#4ade80' : 'var(--border)' }} />
-              )}
-            </Fragment>
-          );
-        })}
-      </div>
-      {/* Row 2: labels — mirrors the circle positions exactly */}
-      <div className="flex items-center justify-between px-4 mt-2">
-        {steps.map((label, i) => {
-          const done = i < current;
-          const act = i === current;
-          return (
-            <Fragment key={`label-${i}`}>
-              <div className="w-7 shrink-0 relative h-4">
-                <span
-                  className="absolute left-1/2 -translate-x-1/2 top-0 text-[10px] font-medium transition-colors whitespace-nowrap text-center"
-                  style={{ color: done ? '#4ade80' : act ? 'var(--text-primary)' : 'var(--text-muted)' }}
-                >
-                  {label}
-                </span>
-              </div>
-              {i < steps.length - 1 && <div className="flex-1 mx-2" />}
-            </Fragment>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* OTP input: 6 individual boxes */
-function OtpInput({ value, onChange, disabled }) {
-  const refs = Array.from({ length: 6 }, () => useRef(null));
-
-  const handleKey = (i, e) => {
-    if (e.key === 'Backspace') {
-      if (!value[i] && i > 0) refs[i - 1].current?.focus();
-      const arr = value.split('');
-      arr[i] = '';
-      onChange(arr.join(''));
-    } else if (e.key === 'ArrowLeft' && i > 0) {
-      refs[i - 1].current?.focus();
-    } else if (e.key === 'ArrowRight' && i < 5) {
-      refs[i + 1].current?.focus();
-    }
-  };
-
-  const handleChange = (i, e) => {
-    let val = e.target.value.replace(/\D/g, '');
-    
-    // If multiple characters were pasted or autofilled (e.g. Android keyboard OTP)
-    if (val.length > 1) {
-      const pasted = val.slice(0, 6);
-      onChange(pasted);
-      if (pasted.length === 6) refs[5].current?.focus();
-      else if (pasted.length > 0) refs[pasted.length - 1].current?.focus();
-      return;
-    }
-    
-    // Standard single character typing
-    const ch = val;
-    const arr = value.padEnd(6, '').split('');
-    arr[i] = ch;
-    onChange(arr.join('').trimEnd());
-    if (ch && i < 5) refs[i + 1].current?.focus();
-  };
-
-  const handlePaste = (e) => {
-    e.preventDefault();
-    const pasteData = e.clipboardData.getData('text/plain') || e.clipboardData.getData('text');
-    if (!pasteData) return;
-    
-    const pasted = pasteData.replace(/\D/g, '').slice(0, 6);
-    if (pasted) {
-      onChange(pasted);
-      if (pasted.length === 6) refs[5].current?.focus();
-      else refs[pasted.length - 1].current?.focus();
-    }
-  };
-
-  return (
-    <div className="flex w-full gap-2 justify-center items-center mx-auto">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <input
-          key={i}
-          ref={refs[i]}
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          value={value[i] || ''}
-          onChange={(e) => handleChange(i, e)}
-          onKeyDown={(e) => handleKey(i, e)}
-          onPaste={handlePaste}
-          disabled={disabled}
-          className="w-11 h-12 text-center text-lg font-bold rounded-lg border transition-all outline-none"
-          style={{
-            background: 'var(--bg-elevated)',
-            border: `1.5px solid ${value[i] ? '#6366f1' : 'var(--border)'}`,
-            color: 'var(--text-primary)',
-            fontSize: '1.2rem',
-          }}
-          onFocus={(e) => e.target.style.borderColor = '#6366f1'}
-          onBlur={(e) => e.target.style.borderColor = value[i] ? '#6366f1' : 'var(--border)'}
-        />
-      ))}
-    </div>
-  );
-}
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 /* Error banner */
 function ErrBanner({ msg }) {
@@ -158,28 +25,30 @@ function ErrBanner({ msg }) {
 
 /* Main */
 export default function ForgotPassword() {
-  const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [resetToken, setResetToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [resendCd, setResendCd] = useState(0);   // countdown seconds
-  const [attemptsLeft, setAttemptsLeft] = useState(null);
+
+  // Step 0: Enter email, Step 1: Reset link sent, Step 2: Set new password (token in URL)
+  const [step, setStep] = useState(0);
+
   const navigate = useNavigate();
+  const location = useLocation();
+  const { executeRecaptcha } = useGoogleReCaptcha();
+  const queryParams = new URLSearchParams(location.search);
+  const token = queryParams.get('token');
 
-  /* Countdown for resend button */
   useEffect(() => {
-    if (resendCd <= 0) return;
-    const t = setTimeout(() => setResendCd((v) => v - 1), 1000);
-    return () => clearTimeout(t);
-  }, [resendCd]);
+    if (token) {
+      setStep(2);
+    }
+  }, [token]);
 
-  /* Step 1: send OTP */
-  const handleSendOtp = async (e) => {
+  /* Step 0: send Magic Link */
+  const handleSendLink = async (e) => {
     e?.preventDefault();
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
       setError('Enter a valid email address');
@@ -188,42 +57,26 @@ export default function ForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/forgot-password', { email: email.trim().toLowerCase() });
-      setAttemptsLeft(data.data?.attemptsLeft ?? null);
-      setStep(1);
-      setResendCd(60);
-      toast.success('OTP sent — check your inbox');
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Failed to send OTP. Try again.';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
+      let recaptchaToken = null;
+      if (executeRecaptcha) {
+        recaptchaToken = await executeRecaptcha('forgot_password');
+      }
 
-  /* Step 2: verify OTP */
-  const handleVerifyOtp = async (e) => {
-    e?.preventDefault();
-    if (otp.length !== 6) { setError('Enter the full 6-digit code'); return; }
-    setError('');
-    setLoading(true);
-    try {
-      const { data } = await api.post('/auth/verify-otp', {
+      await api.post('/auth/forgot-password', {
         email: email.trim().toLowerCase(),
-        otp,
+        recaptchaToken
       });
-      setResetToken(data.data.resetToken);
-      setStep(2);
+      setStep(1);
+      toast.success('Password reset link sent.');
     } catch (err) {
-      const msg = err.response?.data?.error || 'Invalid or expired OTP.';
+      const msg = err.response?.data?.error || 'Failed to send reset link. Try again.';
       setError(msg);
-      setOtp('');
     } finally {
       setLoading(false);
     }
   };
 
-  /* Step 3: reset password */
+  /* Step 2: reset password */
   const handleReset = async (e) => {
     e?.preventDefault();
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
@@ -231,11 +84,11 @@ export default function ForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { resetToken, password });
-      toast.success('Password reset! Sign in with your new password.');
+      await api.post('/auth/reset-password', { token, password });
+      toast.success('Password reset successfully. Please sign in.');
       navigate('/login', { replace: true });
     } catch (err) {
-      const msg = err.response?.data?.error || 'Reset failed. Please start over.';
+      const msg = err.response?.data?.error || 'Reset failed. Link may be invalid or expired.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -247,16 +100,13 @@ export default function ForgotPassword() {
       className="min-h-screen flex items-center justify-center p-4 grid-bg relative overflow-hidden"
       style={{ background: 'var(--bg-base)' }}
     >
-      {/* Glow orbs */}
-      <div className="absolute pointer-events-none" style={{ top: '-20%', left: '-15%', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 65%)' }} />
-      <div className="absolute pointer-events-none" style={{ bottom: '-20%', right: '-15%', width: '45vw', height: '45vw', background: 'radial-gradient(circle, rgba(124,58,237,0.05) 0%, transparent 65%)' }} />
+      <div className="absolute pointer-events-none" style={{ top: '-20%', left: '-15%', width: '50vw', height: '50vw', background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 65%)' }} />
+      <div className="absolute pointer-events-none" style={{ bottom: '-20%', right: '-15%', width: '45vw', height: '45vw', background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 65%)' }} />
 
       <div className="w-full max-w-[400px] animate-slide-up relative z-10">
-
-        {/* Logo */}
         <div className="text-center mb-6">
-          <div className="inline-flex w-12 h-12 rounded-2xl items-center justify-center mb-4" style={{ background: 'linear-gradient(135deg, #6366f1, #7c3aed)', boxShadow: '0 0 32px rgba(99,102,241,0.38)' }}>
-            <MessageSquare size={22} className="text-white" strokeWidth={2.5} />
+          <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-4 overflow-hidden bg-transparent">
+            <img src="/logo.png" alt="SMSGW Logo" className="w-full h-full object-cover scale-[1.3]" />
           </div>
           <h1 className="text-lg sm:text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
             {step === 0 && 'Reset your password'}
@@ -264,21 +114,18 @@ export default function ForgotPassword() {
             {step === 2 && 'Set new password'}
           </h1>
           <p className="text-sm mt-1.5" style={{ color: 'var(--text-secondary)' }}>
-            {step === 0 && "We'll send a 6-digit code to your email"}
-            {step === 1 && `Enter the code sent to ${email}`}
+            {step === 0 && "We'll send a link to your email"}
+            {step === 1 && `Click the link sent to ${email}`}
             {step === 2 && 'Choose a strong new password'}
           </p>
         </div>
 
-        {/* Card */}
         <div className="card p-5 sm:p-6 space-y-4">
-          <Steps current={step} />
-
           <ErrBanner msg={error} />
 
           {/* ── Step 0: Email ── */}
           {step === 0 && (
-            <form onSubmit={handleSendOtp} className="space-y-4" noValidate>
+            <form onSubmit={handleSendLink} className="space-y-4" noValidate>
               <div>
                 <label htmlFor="fp-email" className="label">Email address</label>
                 <div className="relative">
@@ -295,46 +142,25 @@ export default function ForgotPassword() {
                 </div>
               </div>
               <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-sm">
-                {loading ? <><span className="spinner" />&nbsp;Sending…</> : <>Send OTP <ArrowRight size={14} /></>}
+                {loading ? <><span className="spinner" />&nbsp;Sending…</> : <>Send Reset Link <ArrowRight size={14} /></>}
               </button>
             </form>
           )}
 
-          {/* ── Step 1: OTP ── */}
+          {/* ── Step 1: Link Sent ── */}
           {step === 1 && (
-            <form onSubmit={handleVerifyOtp} className="space-y-5" noValidate>
-              <div className="space-y-3">
-                <OtpInput value={otp} onChange={(v) => { setOtp(v); setError(''); }} disabled={loading} />
-                {attemptsLeft !== null && (
-                  <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-                    <Shield size={11} className="inline mr-1" />
-                    {attemptsLeft} OTP request{attemptsLeft !== 1 ? 's' : ''} remaining today
-                  </p>
-                )}
-              </div>
-
+            <div className="text-center py-4 space-y-6">
+              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                We've sent a link to securely reset your password. The link will expire in 10 minutes.
+              </p>
               <button
-                type="submit"
-                disabled={loading || otp.length !== 6}
-                className="btn-primary w-full py-2.5 text-sm"
+                type="button"
+                onClick={() => setStep(0)}
+                className="btn-secondary py-2 px-4 text-sm"
               >
-                {loading ? <><span className="spinner" />&nbsp;Verifying…</> : <>Verify OTP <ArrowRight size={14} /></>}
+                Use a different email
               </button>
-
-              {/* Resend */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  disabled={resendCd > 0 || loading}
-                  onClick={handleSendOtp}
-                  className="text-xs inline-flex items-center gap-1.5 transition-colors"
-                  style={{ color: resendCd > 0 ? 'var(--text-muted)' : '#818cf8' }}
-                >
-                  <RefreshCw size={11} />
-                  {resendCd > 0 ? `Resend in ${resendCd}s` : 'Resend OTP'}
-                </button>
-              </div>
-            </form>
+            </div>
           )}
 
           {/* ── Step 2: New password ── */}
@@ -380,15 +206,20 @@ export default function ForgotPassword() {
           )}
         </div>
 
-        {/* Back to login */}
-        <div className="text-center mt-5">
-          <Link
-            to="/login"
-            className="text-xs inline-flex items-center gap-1.5 transition-colors hover:underline"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <ArrowLeft size={12} /> Back to Sign In
-          </Link>
+        {step !== 1 && (
+          <div className="mt-6 text-center">
+            <Link to="/login" className="inline-flex items-center gap-1.5 text-xs hover:text-white transition-colors" style={{ color: 'var(--text-muted)' }}>
+              <ArrowLeft size={12} />
+              Back to sign in
+            </Link>
+          </div>
+        )}
+
+        {/* reCAPTCHA TOS */}
+        <div className="text-center mt-6 text-[10px]" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+          This site is protected by reCAPTCHA and the Google <br />
+          <a href="https://policies.google.com/privacy" className="underline hover:text-white" target="_blank" rel="noreferrer">Privacy Policy</a> and{' '}
+          <a href="https://policies.google.com/terms" className="underline hover:text-white" target="_blank" rel="noreferrer">Terms of Service</a> apply.
         </div>
       </div>
     </div>

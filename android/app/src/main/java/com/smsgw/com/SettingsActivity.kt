@@ -5,7 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.snackbar.Snackbar
 import com.smsgw.com.data.SecureStorage
 import com.smsgw.com.databinding.ActivitySettingsBinding
-
+import com.smsgw.com.BuildConfig
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -23,6 +23,12 @@ class SettingsActivity : AppCompatActivity() {
         binding.etServerUrl.setText(SecureStorage.getServerUrl(this))
         binding.etDeviceId.setText(SecureStorage.getDeviceId(this))
 
+        // Hide Server URL config in Production
+        if (!BuildConfig.DEBUG) {
+            binding.tvServerUrlLabel.visibility = android.view.View.GONE
+            binding.etServerUrl.visibility = android.view.View.GONE
+        }
+
         // Hint changes based on whether a secret is already stored
         binding.etDeviceSecret.hint = if (SecureStorage.getDeviceSecret(this).isNotBlank())
             "Secret saved — enter new one to change"
@@ -36,13 +42,15 @@ class SettingsActivity : AppCompatActivity() {
             val deviceSecret = binding.etDeviceSecret.text.toString().trim()
 
             // Validation
-            if (serverUrl.isBlank()) {
-                binding.etServerUrl.error = "Server URL is required"
-                return@setOnClickListener
-            }
-            if (!serverUrl.startsWith("http")) {
-                binding.etServerUrl.error = "Must start with http:// or https://"
-                return@setOnClickListener
+            if (BuildConfig.DEBUG) {
+                if (serverUrl.isBlank()) {
+                    binding.etServerUrl.error = "Server URL is required"
+                    return@setOnClickListener
+                }
+                if (!serverUrl.startsWith("http")) {
+                    binding.etServerUrl.error = "Must start with http:// or https://"
+                    return@setOnClickListener
+                }
             }
             if (deviceId.isBlank()) {
                 binding.etDeviceId.error = "Device ID is required"
@@ -54,7 +62,9 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             // Save
-            SecureStorage.saveServerUrl(this, serverUrl)
+            if (BuildConfig.DEBUG) {
+                SecureStorage.saveServerUrl(this, serverUrl)
+            }
 
             val existingSecret = SecureStorage.getDeviceSecret(this)
             when {

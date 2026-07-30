@@ -3,6 +3,8 @@ node_modules/
 
 # Environment variables — NEVER commit these
 .env
+.env.*
+!.env.example
 
 # Firebase service account — contains private keys
 serviceAccount.json
@@ -28,3 +30,6 @@ build/
 
 # firebase encoded
 firebase_b64.txt
+
+#test script
+test_webhook_polling.js

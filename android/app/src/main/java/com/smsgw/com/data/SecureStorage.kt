@@ -3,6 +3,7 @@ package com.smsgw.com.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.smsgw.com.BuildConfig
 
 object SecureStorage {
 
@@ -13,8 +14,6 @@ object SecureStorage {
     private const val KEY_DEVICE_SECRET  = "device_secret"
     private const val KEY_SERVER_URL     = "server_url"
     private const val KEY_FCM_TOKEN      = "fcm_token"
-    private const val KEY_LAST_POLL_TIME = "last_poll_time"
-    private const val KEY_CONTINUOUS_POLLING = "continuous_polling"
 
     // Production URL — users can override in Settings
     private const val DEFAULT_SERVER_URL = "https://api.smsgateway.codewithvin.app"
@@ -36,11 +35,16 @@ object SecureStorage {
         ""
     }
 
-    fun getServerUrl(ctx: Context): String = try {
-        getPrefs(ctx).getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to read serverUrl: ${e.message}")
-        DEFAULT_SERVER_URL
+    fun getServerUrl(ctx: Context): String {
+        if (!com.smsgw.com.BuildConfig.DEBUG) {
+            return DEFAULT_SERVER_URL
+        }
+        return try {
+            getPrefs(ctx).getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read serverUrl: ${e.message}")
+            DEFAULT_SERVER_URL
+        }
     }
 
     fun getFcmToken(ctx: Context): String = try {
@@ -48,18 +52,6 @@ object SecureStorage {
     } catch (e: Exception) {
         Log.e(TAG, "Failed to read fcmToken: ${e.message}")
         ""
-    }
-
-    fun getLastPollTime(ctx: Context): String = try {
-        getPrefs(ctx).getString(KEY_LAST_POLL_TIME, "") ?: ""
-    } catch (e: Exception) {
-        ""
-    }
-
-    fun isContinuousPollingEnabled(ctx: Context): Boolean = try {
-        getPrefs(ctx).getBoolean(KEY_CONTINUOUS_POLLING, false)
-    } catch (e: Exception) {
-        false
     }
 
     fun saveCredentials(ctx: Context, deviceId: String, deviceSecret: String) {
@@ -93,26 +85,6 @@ object SecureStorage {
         }
     }
 
-    fun saveLastPollTime(ctx: Context, timeStr: String) {
-        try {
-            getPrefs(ctx).edit()
-                .putString(KEY_LAST_POLL_TIME, timeStr)
-                .apply()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to save lastPollTime: ${e.message}")
-        }
-    }
-
-    fun setContinuousPollingEnabled(ctx: Context, enabled: Boolean) {
-        try {
-            getPrefs(ctx).edit()
-                .putBoolean(KEY_CONTINUOUS_POLLING, enabled)
-                .apply()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to save continuous polling state: ${e.message}")
-        }
-    }
-
     fun isConfigured(ctx: Context): Boolean {
         val id     = getDeviceId(ctx)
         val secret = getDeviceSecret(ctx)
@@ -124,7 +96,7 @@ object SecureStorage {
             getPrefs(ctx).edit()
                 .remove(KEY_DEVICE_ID)
                 .remove(KEY_DEVICE_SECRET)
-                .remove(KEY_LAST_POLL_TIME)
+                .remove(KEY_FCM_TOKEN)
                 .apply()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear credentials: ${e.message}")
