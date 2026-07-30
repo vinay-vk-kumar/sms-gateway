@@ -3,9 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Smartphone, Zap, Server, Shield, Globe, ArrowRight, Database, Terminal, CheckCircle2, Download } from 'lucide-react';
 
+const isBot = typeof navigator !== 'undefined' ? /bot|googlebot|crawler|spider|robot|crawling|google-inspectiontool/i.test(navigator.userAgent || '') : false;
+
 const StaggerContainer = ({ children, delayOffset = 0, className = "" }) => (
   <motion.div
-    initial="hidden"
+    initial={isBot ? false : "hidden"}
     whileInView="visible"
     viewport={{ once: true, margin: "0px 0px -50px 0px" }}
     variants={{
@@ -49,7 +51,7 @@ export default function Landing() {
 
       {/* Nav */}
       <motion.nav
-        initial={{ y: -100 }}
+        initial={isBot ? false : { y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.8, ease: [0.21, 0.47, 0.32, 0.98] }}
         className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-md"
@@ -93,7 +95,7 @@ export default function Landing() {
         >
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
+            initial={isBot ? false : { opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="inline-flex items-center gap-2 px-3 py-1 border border-white/10 bg-white/5 mb-6 sm:mb-8 rounded-full"
@@ -104,7 +106,7 @@ export default function Landing() {
 
           <div className="overflow-hidden mb-8">
             <motion.h1
-              initial={{ y: "100%" }}
+              initial={isBot ? false : { y: "100%" }}
               animate={{ y: 0 }}
               transition={{ duration: 1, ease: [0.21, 0.47, 0.32, 0.98], delay: 0.3 }}
               className="text-[40px] sm:text-5xl md:text-7xl lg:text-[100px] font-bold tracking-tighter leading-[1.05] text-white"
@@ -114,7 +116,7 @@ export default function Landing() {
           </div>
 
           <motion.p
-            initial={{ opacity: 0 }}
+            initial={isBot ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 0.6 }}
             className="text-base sm:text-lg md:text-2xl text-zinc-400 max-w-3xl mx-auto leading-relaxed font-light mb-8 sm:mb-10"
@@ -123,7 +125,7 @@ export default function Landing() {
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={isBot ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.7 }}
             className="mb-8 sm:mb-10"
@@ -135,7 +137,7 @@ export default function Landing() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={isBot ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
             className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center"
@@ -211,7 +213,7 @@ export default function Landing() {
 
       {/* Spacer / Line */}
       <motion.div
-        initial={{ scaleX: 0 }}
+        initial={isBot ? false : { scaleX: 0 }}
         whileInView={{ scaleX: 1 }}
         viewport={{ once: true }}
         transition={{ duration: 1.5, ease: "easeInOut" }}
@@ -269,7 +271,7 @@ export default function Landing() {
 
           <div className="flex-1 w-full relative">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={isBot ? false : { opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true, margin: "0px 0px -50px 0px" }}
               transition={{ duration: 0.8, ease: "easeOut" }}
@@ -300,7 +302,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-16">
           <div className="flex-1 w-full relative">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={isBot ? false : { opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true, margin: "0px 0px -50px 0px" }}
               transition={{ duration: 0.8, ease: "easeOut" }}

@@ -521,8 +521,3 @@ body {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
 }
-
-html.bot-crawler [style] {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
