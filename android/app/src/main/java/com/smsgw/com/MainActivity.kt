@@ -137,9 +137,11 @@ class MainActivity : AppCompatActivity() {
                     Log.e(TAG, "Battery optimization intent failed: ${e.message}")
                 }
             } else {
-                // If they already ignored battery optimization, ask them to check AutoStart
-                // (Only really necessary for Xiaomi/Oppo/Vivo)
-                com.smsgw.com.utils.AutoStartHelper.requestAutoStartPermissions(this)
+                val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                if (!prefs.getBoolean("has_prompted_autostart", false)) {
+                    prefs.edit().putBoolean("has_prompted_autostart", true).apply()
+                    com.smsgw.com.utils.AutoStartHelper.requestAutoStartPermissions(this)
+                }
             }
         }
     }
