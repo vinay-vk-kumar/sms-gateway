@@ -19,16 +19,6 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <style>
-    /* Force all elements to be visible when a crawler is detected */
-    .bot-crawler * {
-      opacity: 1 !important;
-      transform: none !important;
-      animation: none !important;
-      transition: none !important;
-      visibility: visible !important;
-    }
-  </style>
   <script>
     if (/bot|googlebot|crawler|spider|robot|crawling|google-inspectiontool/i.test(navigator.userAgent)) {
       document.documentElement.classList.add('bot-crawler');
