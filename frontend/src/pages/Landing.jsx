@@ -54,7 +54,7 @@ export default function Landing() {
         initial={isBot ? false : { y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.8, ease: [0.21, 0.47, 0.32, 0.98] }}
-        className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-md"
+        className={`fixed top-0 left-0 right-0 z-50 border-b border-white/10 ${isBot ? 'bg-black' : 'bg-black/80 backdrop-blur-md'}`}
       >
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
