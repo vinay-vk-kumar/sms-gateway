@@ -5,9 +5,15 @@ import { Smartphone, Zap, Server, Shield, Globe, ArrowRight, Database, Terminal,
 
 const isBot = typeof navigator !== 'undefined' ? /bot|googlebot|crawler|spider|robot|crawling|google-inspectiontool/i.test(navigator.userAgent || '') : false;
 
+const MDiv = isBot ? 'div' : motion.div;
+const MNav = isBot ? 'nav' : motion.nav;
+const MH1 = isBot ? 'h1' : motion.h1;
+const MP = isBot ? 'p' : motion.p;
+const MSpan = isBot ? 'span' : motion.span;
+
 const StaggerContainer = ({ children, delayOffset = 0, className = "" }) => (
-  <motion.div
-    initial={isBot ? false : "hidden"}
+  <MDiv
+    initial={isBot ? undefined : "hidden"}
     whileInView="visible"
     viewport={{ once: true, margin: "0px 0px -50px 0px" }}
     variants={{
@@ -22,26 +28,25 @@ const StaggerContainer = ({ children, delayOffset = 0, className = "" }) => (
     className={className}
   >
     {children}
-  </motion.div>
+  </MDiv>
 );
 
-const FadeUp = ({ children, className = "" }) => (
-  <motion.div
+const FadeUp = ({ children, delay = 0, className = "" }) => (
+  <MDiv
     variants={{
       hidden: { opacity: 0, y: 30 },
-      visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.21, 0.47, 0.32, 0.98] } }
+      visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay, ease: [0.21, 0.47, 0.32, 0.98] } }
     }}
     className={className}
   >
     {children}
-  </motion.div>
+  </MDiv>
 );
 
 export default function Landing() {
   const { token } = useAuth();
   const navigate = useNavigate();
 
-  // Parallax for hero
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 500], [0, 150]);
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
@@ -49,22 +54,21 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white/20 selection:text-white overflow-x-hidden">
 
-      {/* Nav */}
-      <motion.nav
-        initial={isBot ? false : { y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.8, ease: [0.21, 0.47, 0.32, 0.98] }}
+      <MNav
+        initial={isBot ? undefined : { y: -100 }}
+        animate={isBot ? undefined : { y: 0 }}
+        transition={isBot ? undefined : { duration: 0.8, ease: [0.21, 0.47, 0.32, 0.98] }}
         className={`fixed top-0 left-0 right-0 z-50 border-b border-white/10 ${isBot ? 'bg-black' : 'bg-black/80 backdrop-blur-md'}`}
       >
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <motion.div
-              whileHover={{ rotate: -10, scale: 1.05 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
+            <MDiv
+              whileHover={isBot ? undefined : { rotate: -10, scale: 1.05 }}
+              transition={isBot ? undefined : { duration: 0.3, ease: "easeInOut" }}
               className="w-10 h-10 flex items-center justify-center rounded-lg overflow-hidden bg-transparent"
             >
               <img src="/logo.png" alt="SMSGW Logo" className="w-full h-full object-cover scale-150" />
-            </motion.div>
+            </MDiv>
             <span className="font-semibold text-lg tracking-tight text-white">SMSGW</span>
           </div>
           <div className="flex items-center gap-6">
@@ -85,72 +89,70 @@ export default function Landing() {
             )}
           </div>
         </div>
-      </motion.nav>
+      </MNav>
 
-      {/* Hero Section */}
       <section className="relative pt-24 sm:pt-32 md:pt-24 pb-20 md:pb-32 px-6 flex flex-col items-center justify-center min-h-[80vh] md:min-h-[85vh]">
-        <motion.div
-          style={{ y: heroY, opacity: heroOpacity }}
+        <MDiv
+          style={isBot ? undefined : { y: heroY, opacity: heroOpacity }}
           className="max-w-5xl mx-auto text-center flex flex-col items-center z-10"
         >
-
-          <motion.div
-            initial={isBot ? false : { opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+          <MDiv
+            initial={isBot ? undefined : { opacity: 0, scale: 0.8 }}
+            animate={isBot ? undefined : { opacity: 1, scale: 1 }}
+            transition={isBot ? undefined : { duration: 0.5, delay: 0.2 }}
             className="inline-flex items-center gap-2 px-3 py-1 border border-white/10 bg-white/5 mb-6 sm:mb-8 rounded-full"
           >
             <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
             <span className="text-xs tracking-widest uppercase text-zinc-400 font-semibold">v2.0 is now live</span>
-          </motion.div>
+          </MDiv>
 
           <div className="overflow-hidden mb-8">
-            <motion.h1
-              initial={isBot ? false : { y: "100%" }}
-              animate={{ y: 0 }}
-              transition={{ duration: 1, ease: [0.21, 0.47, 0.32, 0.98], delay: 0.3 }}
+            <MH1
+              initial={isBot ? undefined : { y: "100%" }}
+              animate={isBot ? undefined : { y: 0 }}
+              transition={isBot ? undefined : { duration: 1, ease: [0.21, 0.47, 0.32, 0.98], delay: 0.3 }}
               className="text-[40px] sm:text-5xl md:text-7xl lg:text-[100px] font-bold tracking-tighter leading-[1.05] text-white"
             >
               Turn your Android <br className="hidden md:block" /> into an API.
-            </motion.h1>
+            </MH1>
           </div>
 
-          <motion.p
-            initial={isBot ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.6 }}
+          <MP
+            initial={isBot ? undefined : { opacity: 0 }}
+            animate={isBot ? undefined : { opacity: 1 }}
+            transition={isBot ? undefined : { duration: 1, delay: 0.6 }}
             className="text-base sm:text-lg md:text-2xl text-zinc-400 max-w-3xl mx-auto leading-relaxed font-light mb-8 sm:mb-10"
           >
             Bypass legacy gateways like Twilio and Plivo. Link your smartphone, integrate our API in minutes, and dispatch zero-delay background SMS messages using your unmetered cellular plan.
-          </motion.p>
+          </MP>
 
-          <motion.div
-            initial={isBot ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.7 }}
+          <MDiv
+            initial={isBot ? undefined : { opacity: 0, y: 10 }}
+            animate={isBot ? undefined : { opacity: 1, y: 0 }}
+            transition={isBot ? undefined : { duration: 0.8, delay: 0.7 }}
             className="mb-8 sm:mb-10"
           >
             <Link to="/story" className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-all group text-sm font-medium border border-white/10 bg-white/[0.02] px-4 py-2 rounded-full hover:border-white/20 hover:bg-white/5">
               <span>📖 Discover why I built SMS Gateway</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </Link>
-          </motion.div>
+          </MDiv>
 
-          <motion.div
-            initial={isBot ? false : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.8 }}
+          <MDiv
+            initial={isBot ? undefined : { opacity: 0, y: 20 }}
+            animate={isBot ? undefined : { opacity: 1, y: 0 }}
+            transition={isBot ? undefined : { duration: 0.8, delay: 0.8 }}
             className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center"
           >
             <Link
               to={token ? "/dashboard" : "/login"}
               className="group flex items-center justify-center gap-2 px-8 py-4 bg-white text-black font-semibold text-lg hover:bg-zinc-200 transition-colors rounded-sm w-full sm:w-auto overflow-hidden relative"
             >
-              <motion.span
+              <MSpan
                 className="absolute inset-0 bg-zinc-300 origin-left"
-                initial={{ scaleX: 0 }}
-                whileHover={{ scaleX: 1 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                initial={isBot ? undefined : { scaleX: 0 }}
+                whileHover={isBot ? undefined : { scaleX: 1 }}
+                transition={isBot ? undefined : { duration: 0.3, ease: "easeOut" }}
               />
               <span className="relative z-10 flex items-center gap-2">
                 {token ? "Go to Dashboard" : "Start Routing"}
@@ -166,17 +168,16 @@ export default function Landing() {
               <Download className="w-5 h-5" />
               Download APK
             </a>
-          </motion.div>
-        </motion.div>
+          </MDiv>
+        </MDiv>
       </section>
 
-      {/* Hero Terminal Snippet */}
       <section className="px-6 pb-40 relative z-20 w-full overflow-hidden">
         <StaggerContainer className="max-w-4xl mx-auto w-full">
           <FadeUp>
-            <motion.div
-              whileHover={{ y: -5, boxShadow: "0 20px 80px rgba(255,255,255,0.05)" }}
-              transition={{ duration: 0.4 }}
+            <MDiv
+              whileHover={isBot ? undefined : { y: -5, boxShadow: "0 20px 80px rgba(255,255,255,0.05)" }}
+              transition={isBot ? undefined : { duration: 0.4 }}
               className="border border-white/10 bg-[#050505] shadow-[0_0_80px_rgba(255,255,255,0.03)] rounded-lg overflow-hidden w-full"
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#0a0a0a]">
@@ -191,36 +192,34 @@ export default function Landing() {
                 </div>
               </div>
               <div className="p-4 sm:p-8 md:p-12 overflow-x-auto w-full">
-                <pre className="font-mono text-[13px] sm:text-[15px] leading-loose text-zinc-300">
-                  <motion.div variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
+                <div className="font-mono text-[13px] sm:text-[15px] leading-loose text-zinc-300">
+                  <div>
                     <span className="text-zinc-600">$</span> curl -X POST {import.meta.env.VITE_API_SNIPPET_URL || 'https://api.yourdomain.com'}/api/sms/queue \
-                  </motion.div>
-                  <motion.div variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
+                  </div>
+                  <div>
                     <span className="text-zinc-600">  -H</span> "x-api-key: your_api_key_here" \
-                  </motion.div>
-                  <motion.div variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
+                  </div>
+                  <div>
                     <span className="text-zinc-600">  -H</span> "Content-Type: application/json" \
-                  </motion.div>
-                  <motion.div variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
+                  </div>
+                  <div>
                     <span className="text-zinc-600">  -d</span> '{'{\n    "to": "+919876543210",\n    "message": "Your OTP is 1234",\n    "type": "otp",\n    "webhookUrl": "https://your-server.com/webhook",\n    "idempotencyKey": "order-12345"\n  }'}'
-                  </motion.div>
-                </pre>
+                  </div>
+                </div>
               </div>
-            </motion.div>
+            </MDiv>
           </FadeUp>
         </StaggerContainer>
       </section>
 
-      {/* Spacer / Line */}
-      <motion.div
-        initial={isBot ? false : { scaleX: 0 }}
-        whileInView={{ scaleX: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 1.5, ease: "easeInOut" }}
+      <MDiv
+        initial={isBot ? undefined : { scaleX: 0 }}
+        whileInView={isBot ? undefined : { scaleX: 1 }}
+        viewport={isBot ? undefined : { once: true }}
+        transition={isBot ? undefined : { duration: 1.5, ease: "easeInOut" }}
         className="w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent origin-center"
       />
 
-      {/* Main Intro for Features */}
       <section className="py-24 md:py-32 px-6 text-center max-w-4xl mx-auto">
         <StaggerContainer>
           <FadeUp>
@@ -243,44 +242,41 @@ export default function Landing() {
         </StaggerContainer>
       </section>
 
-      {/* Feature 1: Reliability */}
       <section className="py-24 px-6 overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
-          <StaggerContainer className="flex-1 lg:pr-12">
+          <div className="flex-1 lg:pr-12">
             <FadeUp>
-              <motion.div
-                whileHover={{ rotate: 90 }}
-                transition={{ duration: 0.5 }}
-                className="w-12 h-12 flex items-center justify-center border border-white/20 bg-white/5 rounded-full mb-8"
-              >
+              <div className="w-12 h-12 flex items-center justify-center border border-white/20 bg-white/5 rounded-full mb-8">
                 <Server className="w-6 h-6 text-white" />
-              </motion.div>
+              </div>
             </FadeUp>
-            <FadeUp><h3 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">Guaranteed Delivery</h3></FadeUp>
-            <FadeUp>
+            <FadeUp delay={0.1}>
+              <h3 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">Guaranteed Delivery</h3>
+            </FadeUp>
+            <FadeUp delay={0.2}>
               <p className="text-lg text-zinc-400 leading-relaxed mb-8">
                 Never lose a message again. Our intelligent queueing system automatically handles network drops, rate limits, and offline devices. If a message fails, we automatically retry until it's delivered.
               </p>
             </FadeUp>
             <ul className="space-y-4">
-              <FadeUp><li className="flex items-center gap-3 text-zinc-300"><CheckCircle2 className="w-5 h-5 text-white" /> Built-in rate limit protection</li></FadeUp>
-              <FadeUp><li className="flex items-center gap-3 text-zinc-300"><CheckCircle2 className="w-5 h-5 text-white" /> Automatic retry mechanisms</li></FadeUp>
-              <FadeUp><li className="flex items-center gap-3 text-zinc-300"><CheckCircle2 className="w-5 h-5 text-white" /> 99.99% infrastructure uptime</li></FadeUp>
+              <FadeUp delay={0.3}><li className="flex items-center gap-3 text-zinc-300"><CheckCircle2 className="w-5 h-5 text-white" /> Built-in rate limit protection</li></FadeUp>
+              <FadeUp delay={0.4}><li className="flex items-center gap-3 text-zinc-300"><CheckCircle2 className="w-5 h-5 text-white" /> Automatic retry mechanisms</li></FadeUp>
+              <FadeUp delay={0.5}><li className="flex items-center gap-3 text-zinc-300"><CheckCircle2 className="w-5 h-5 text-white" /> 99.99% infrastructure uptime</li></FadeUp>
             </ul>
-          </StaggerContainer>
+          </div>
 
           <div className="flex-1 w-full relative">
-            <motion.div
-              initial={isBot ? false : { opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: "0px 0px -50px 0px" }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+            <MDiv
+              initial={isBot ? undefined : { opacity: 0, scale: 0.9 }}
+              whileInView={isBot ? undefined : { opacity: 1, scale: 1 }}
+              viewport={isBot ? undefined : { once: true, margin: "0px 0px -50px 0px" }}
+              transition={isBot ? undefined : { duration: 0.8, ease: "easeOut" }}
               className="relative aspect-square md:aspect-video lg:aspect-square flex items-center justify-center"
             >
               <div className="absolute inset-0 border border-white/10 rounded-2xl bg-[#050505] overflow-hidden flex items-center justify-center group">
                 <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                  animate={isBot ? undefined : { rotate: 360 }}
+                  transition={isBot ? undefined : { duration: 20, repeat: Infinity, ease: "linear" }}
                   className="w-48 h-48 rounded-full border border-white/20 absolute"
                 />
                 <motion.div
@@ -292,7 +288,7 @@ export default function Landing() {
                   <Server className="w-16 h-16 text-zinc-600 group-hover:text-white transition-colors duration-500" />
                 </motion.div>
               </div>
-            </motion.div>
+            </MDiv>
           </div>
         </div>
       </section>
@@ -301,11 +297,11 @@ export default function Landing() {
       <section className="py-24 px-6 overflow-hidden bg-[#020202]">
         <div className="max-w-7xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-16">
           <div className="flex-1 w-full relative">
-            <motion.div
-              initial={isBot ? false : { opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: "0px 0px -50px 0px" }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+            <MDiv
+              initial={isBot ? undefined : { opacity: 0, scale: 0.9 }}
+              whileInView={isBot ? undefined : { opacity: 1, scale: 1 }}
+              viewport={isBot ? undefined : { once: true, margin: "0px 0px -50px 0px" }}
+              transition={isBot ? undefined : { duration: 0.8, ease: "easeOut" }}
               className="relative aspect-square md:aspect-video lg:aspect-square flex items-center justify-center"
             >
               <div className="absolute inset-0 border border-white/10 rounded-2xl bg-[#050505] overflow-hidden flex items-center justify-center group">
@@ -324,7 +320,7 @@ export default function Landing() {
                   <Smartphone className="w-16 h-16 text-zinc-600 group-hover:text-white transition-colors duration-500" />
                 </motion.div>
               </div>
-            </motion.div>
+            </MDiv>
           </div>
 
           <StaggerContainer className="flex-1 lg:pl-12">

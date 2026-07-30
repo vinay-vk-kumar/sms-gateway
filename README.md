@@ -137,7 +137,7 @@ The Android app operates entirely as a background daemon. Users pair the device 
 <img src="android-preview.png" alt="Android App" width="280" />
 
 
-🔗 **[Download SMS Gateway v2.0 APK](https://github.com/vinay-vk-kumar/sms-gateway/releases/download/v2.0.0/SMS_Gateway_v2.0.apk)**
+🔗 **[Download SMS Gateway v2.0.1 APK](https://github.com/vinay-vk-kumar/sms-gateway/releases/download/v2.0.1/SMS_Gateway_v2.0.1.apk)**
 
 ---
 
