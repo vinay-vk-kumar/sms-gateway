@@ -521,10 +521,8 @@ body {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
 }
-/* SEO / Crawler Override: Force all elements to be visible for Googlebot */
-.bot-crawler * {
+
+html.bot-crawler [style] {
   opacity: 1 !important;
-  transform: none !important;
-  animation: none !important;
-  transition: none !important;
+  visibility: visible !important;
 }
