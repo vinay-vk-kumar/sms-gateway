@@ -47,7 +47,7 @@ export default function Landing() {
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-white/20 selection:text-white overflow-hidden">
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white/20 selection:text-white overflow-x-hidden">
 
       {/* Nav */}
       <motion.nav
