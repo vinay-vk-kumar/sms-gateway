@@ -113,7 +113,7 @@ export default function Landing() {
               transition={isBot ? undefined : { duration: 1, ease: [0.21, 0.47, 0.32, 0.98], delay: 0.3 }}
               className="text-[40px] sm:text-5xl md:text-7xl lg:text-[100px] font-bold tracking-tighter leading-[1.05] text-white"
             >
-              Turn your Android <br className="hidden md:block" /> into an API.
+              Turn your Android <br className="hidden md:block" /> into a SMS API.
             </MH1>
           </div>
 
@@ -391,7 +391,7 @@ export default function Landing() {
         <div className="absolute inset-0 bg-white/[0.02]" />
         <StaggerContainer className="max-w-4xl mx-auto text-center relative z-10">
           <FadeUp>
-            <h2 className="text-5xl md:text-7xl font-bold tracking-tight mb-8">Ready to build?</h2>
+            <h2 className="text-5xl md:text-7xl font-bold tracking-tight mb-8">Ready to bypass expensive SMS gateways?</h2>
           </FadeUp>
           <FadeUp>
             <p className="text-xl text-zinc-400 mb-12 max-w-2xl mx-auto">
